@@ -47,12 +47,12 @@ export const LoginForm: React.FC = () => {
     try {
       const success = await signIn(data.email, data.password);
       if (success) {
-        navigate('/dashboard'); // Change route to your dashboard/home
-      } else {
-        setLoading(false);
+        setPasswordErrors([]); // clear errors on success
+        navigate('/dashboard'); // redirect to dashboard
       }
     } catch (error) {
       console.error('Login error:', error);
+    } finally {
       setLoading(false);
     }
   };
