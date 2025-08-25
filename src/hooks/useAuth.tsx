@@ -109,7 +109,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       .from('users')
       .select('*')
       .eq('email', email)
-      .maybeSingle();
+      .single();
+      
+    console.log("User data:", userData);
+    console.log("User error:", userError);
 
     if (userError) {
       console.error('Supabase userError:', userError);
