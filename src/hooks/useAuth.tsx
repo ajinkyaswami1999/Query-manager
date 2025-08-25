@@ -118,7 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // For demo purposes, we'll use a simple password comparison
       // In production, you should use proper password hashing
       if (userData.password_hash !== password) {
-        toast.error('Invalid email or password');
+        toast.error('Invalid password');
         return false;
       }
 
