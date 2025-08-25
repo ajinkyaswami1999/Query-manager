@@ -112,7 +112,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .maybeSingle();
 
       if (userError || !userData) {
-        toast.error('Invalid email or password');
+        toast.error('Invalid email or password 1');
         return false;
       }
 
@@ -129,7 +129,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (authError) {
-        toast.error('Invalid email or password');
+        toast.error('Invalid email or password 2');
         return false;
       }
 
