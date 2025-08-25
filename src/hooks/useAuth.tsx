@@ -103,43 +103,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signIn = async (email: string, password: string): Promise<boolean> => {
-    try {
-      // Step 1: Check if user exists in our `users` table
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .maybeSingle();
+  try {
+    // Step 1: Check if user exists in your custom `users` table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
 
-      if (userError || !userData) {
-        toast.error('Invalid email or password 1');
-        return false;
-      }
-
-      // Step 2: Check if user is active
-      if (!userData.is_active) {
-        toast.error('Your account is deactivated. Please contact administrator.');
-        return false;
-      }
-
-      // Step 3: Sign in with Supabase Auth
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (authError) {
-        toast.error('Invalid email or password 2');
-        return false;
-      }
-
-      toast.success('Signed in successfully');
-      return true;
-    } catch (error) {
-      console.error('Sign in error:', error);
-      toast.error('Sign in failed');
+    if (userError) {
+      console.error('Supabase userError:', userError);
+      toast.error('Server error while checking user');
       return false;
     }
+
+    if (!userData) {
+      toast.error('Invalid email or password');
+      return false;
+    }
+
+    // Step 2: Check if user is active
+    if (!userData.is_active) {
+      toast.error('Your account is deactivated. Please contact administrator.');
+      return false;
+    }
+
+    // Step 3: Sign in with Supabase Auth
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (authError) {
+      console.error('Supabase authError:', authError);
+      toast.error('Invalid email or password');
+      return false;
+    }
+
+    toast.success('Signed in successfully');
+    return true;
+  } catch (error) {
+    console.error('Sign in error:', error);
+    toast.error('Sign in failed');
+    return false;
+  }
   };
 
   const signOut = async () => {
