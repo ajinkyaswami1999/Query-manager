@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useNavigate } from 'react-router-dom';
 import { LogIn, Database } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -19,14 +20,20 @@ export const LoginForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const { signIn } = useAuth();
+  const navigate = useNavigate();
 
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<LoginFormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    watch
+  } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema)
   });
 
   const password = watch('password');
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (password && password.length > 0) {
       const validation = validatePassword(password);
       setPasswordErrors(validation.errors);
@@ -39,10 +46,13 @@ export const LoginForm: React.FC = () => {
     setLoading(true);
     try {
       const success = await signIn(data.email, data.password);
-      if (!success) {
+      if (success) {
+        navigate('/dashboard'); // Change route to your dashboard/home
+      } else {
         setLoading(false);
       }
     } catch (error) {
+      console.error('Login error:', error);
       setLoading(false);
     }
   };
@@ -80,12 +90,16 @@ export const LoginForm: React.FC = () => {
                 error={errors.password?.message}
                 {...register('password')}
               />
-              
+
               {passwordErrors.length > 0 && (
                 <div className="mt-2 space-y-1">
-                  <p className="text-xs text-gray-600 font-medium">Password requirements:</p>
+                  <p className="text-xs text-gray-600 font-medium">
+                    Password requirements:
+                  </p>
                   {passwordErrors.map((error, index) => (
-                    <p key={index} className="text-xs text-red-600">• {error}</p>
+                    <p key={index} className="text-xs text-red-600">
+                      • {error}
+                    </p>
                   ))}
                 </div>
               )}
@@ -103,9 +117,15 @@ export const LoginForm: React.FC = () => {
           </form>
 
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-600 font-medium mb-2">Demo Credentials:</p>
-            <p className="text-xs text-gray-600">Admin: admin@example.com / Admin123!@#$4567</p>
-            <p className="text-xs text-gray-600">User: user@example.com / User123!@#$4567</p>
+            <p className="text-xs text-gray-600 font-medium mb-2">
+              Demo Credentials:
+            </p>
+            <p className="text-xs text-gray-600">
+              Admin: admin@example.com / Admin123!@#$4567
+            </p>
+            <p className="text-xs text-gray-600">
+              User: user@example.com / User123!@#$4567
+            </p>
           </div>
         </div>
       </div>
