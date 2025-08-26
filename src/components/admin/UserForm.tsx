@@ -7,6 +7,7 @@ import { Button } from '../ui/Button';
 import { supabase } from '../../lib/supabase';
 import { User, Role, UserRight } from '../../types';
 import { validatePassword } from '../../utils/validation';
+import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 const userSchema = z.object({
@@ -35,8 +36,9 @@ export const UserForm: React.FC<UserFormProps> = ({
 }) => {
   const isEdit = !!user;
   const [selectedRights, setSelectedRights] = React.useState<string[]>([]);
+  const { isSupabaseConnected } = useAuth();
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, watch, setValue } = useForm<UserFormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, watch } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
     defaultValues: {
       name: user?.name || '',
@@ -49,13 +51,13 @@ export const UserForm: React.FC<UserFormProps> = ({
   const password = watch('password');
 
   React.useEffect(() => {
-    if (user) {
+    if (user && isSupabaseConnected) {
       loadUserRights();
     }
-  }, [user]);
+  }, [user, isSupabaseConnected]);
 
   const loadUserRights = async () => {
-    if (!user) return;
+    if (!user || !isSupabaseConnected) return;
 
     try {
       const { data, error } = await supabase
@@ -81,6 +83,11 @@ export const UserForm: React.FC<UserFormProps> = ({
   };
 
   const onSubmit = async (data: UserFormData) => {
+    if (!isSupabaseConnected) {
+      toast.error('User management not available in demo mode');
+      return;
+    }
+
     if (!isEdit && data.password) {
       const validation = validatePassword(data.password);
       if (!validation.isValid) {
@@ -174,107 +181,123 @@ export const UserForm: React.FC<UserFormProps> = ({
   const passwordValidation = password ? validatePassword(password) : { isValid: true, errors: [] };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <Input
-        label="Full Name"
-        placeholder="Enter full name"
-        error={errors.name?.message}
-        {...register('name')}
-      />
+    <div className="space-y-4">
+      {!isSupabaseConnected && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <p className="text-sm text-amber-800">
+            User management is not available in demo mode. Connect to Supabase to enable this feature.
+          </p>
+        </div>
+      )}
 
-      <Input
-        label="Email Address"
-        type="email"
-        placeholder="Enter email address"
-        error={errors.email?.message}
-        {...register('email')}
-      />
-
-      <div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input
-          label={isEdit ? "New Password (leave blank to keep current)" : "Password"}
-          placeholder="Enter password"
-          showPasswordToggle
-          error={errors.password?.message}
-          {...register('password')}
+          label="Full Name"
+          placeholder="Enter full name"
+          error={errors.name?.message}
+          disabled={!isSupabaseConnected}
+          {...register('name')}
         />
-        
-        {password && !passwordValidation.isValid && (
-          <div className="mt-2 space-y-1">
-            <p className="text-xs text-gray-600 font-medium">Password requirements:</p>
-            {passwordValidation.errors.map((error, index) => (
-              <p key={index} className="text-xs text-red-600">• {error}</p>
+
+        <Input
+          label="Email Address"
+          type="email"
+          placeholder="Enter email address"
+          error={errors.email?.message}
+          disabled={!isSupabaseConnected}
+          {...register('email')}
+        />
+
+        <div>
+          <Input
+            label={isEdit ? "New Password (leave blank to keep current)" : "Password"}
+            placeholder="Enter password"
+            showPasswordToggle
+            error={errors.password?.message}
+            disabled={!isSupabaseConnected}
+            {...register('password')}
+          />
+          
+          {password && !passwordValidation.isValid && (
+            <div className="mt-2 space-y-1">
+              <p className="text-xs text-gray-600 font-medium">Password requirements:</p>
+              {passwordValidation.errors.map((error, index) => (
+                <p key={index} className="text-xs text-red-600">• {error}</p>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Role
+          </label>
+          <select
+            className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={!isSupabaseConnected}
+            {...register('role_id')}
+          >
+            <option value="">Select Role</option>
+            {roles.map(role => (
+              <option key={role.id} value={role.id}>
+                {role.role_name}
+              </option>
+            ))}
+          </select>
+          {errors.role_id && (
+            <p className="text-sm text-red-600 mt-1">{errors.role_id.message}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            User Rights
+          </label>
+          <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+            {userRights.map(right => (
+              <div key={right.id} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id={`right_${right.id}`}
+                  checked={selectedRights.includes(right.id)}
+                  onChange={(e) => handleRightChange(right.id, e.target.checked)}
+                  disabled={!isSupabaseConnected}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label
+                  htmlFor={`right_${right.id}`}
+                  className="text-sm text-gray-700 cursor-pointer"
+                >
+                  {right.right_name}
+                </label>
+              </div>
             ))}
           </div>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Role
-        </label>
-        <select
-          className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          {...register('role_id')}
-        >
-          <option value="">Select Role</option>
-          {roles.map(role => (
-            <option key={role.id} value={role.id}>
-              {role.role_name}
-            </option>
-          ))}
-        </select>
-        {errors.role_id && (
-          <p className="text-sm text-red-600 mt-1">{errors.role_id.message}</p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          User Rights
-        </label>
-        <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
-          {userRights.map(right => (
-            <div key={right.id} className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id={`right_${right.id}`}
-                checked={selectedRights.includes(right.id)}
-                onChange={(e) => handleRightChange(right.id, e.target.checked)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label
-                htmlFor={`right_${right.id}`}
-                className="text-sm text-gray-700 cursor-pointer"
-              >
-                {right.right_name}
-              </label>
-            </div>
-          ))}
         </div>
-      </div>
 
-      <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          id="is_active"
-          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          {...register('is_active')}
-        />
-        <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-          Active User
-        </label>
-      </div>
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="is_active"
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            disabled={!isSupabaseConnected}
+            {...register('is_active')}
+          />
+          <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
+            Active User
+          </label>
+        </div>
 
-      <div className="flex justify-end space-x-3 pt-4">
-        <Button
-          type="submit"
-          loading={isSubmitting}
-          disabled={password && !passwordValidation.isValid}
-        >
-          {isEdit ? 'Update User' : 'Create User'}
-        </Button>
-      </div>
-    </form>
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button
+            type="submit"
+            loading={isSubmitting}
+            disabled={!isSupabaseConnected || (password && !passwordValidation.isValid)}
+          >
+            {isEdit ? 'Update User' : 'Create User'}
+          </Button>
+        </div>
+      </form>
+    </div>
   );
 };

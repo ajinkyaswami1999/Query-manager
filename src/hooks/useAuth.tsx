@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode
-} from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthUser, User, Role, UserRight } from '../types';
 import toast from 'react-hot-toast';
@@ -17,6 +11,7 @@ interface AuthContextType {
   checkUserExists: (email: string) => Promise<boolean>;
   isAdmin: () => boolean;
   hasRight: (rightName: string) => boolean;
+  isSupabaseConnected: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,43 +28,111 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Hardcoded fallback data
+const FALLBACK_USERS = [
+  {
+    id: 'admin-1',
+    role_id: 'role-admin',
+    name: 'System Administrator',
+    email: 'admin@example.com',
+    password_hash: 'Admin123!@#$4567',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    role: {
+      id: 'role-admin',
+      role_name: 'Admin',
+      description: 'System administrator with full access',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  },
+  {
+    id: 'user-1',
+    role_id: 'role-user',
+    name: 'Demo User',
+    email: 'user@example.com',
+    password_hash: 'User123!@#$4567',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    role: {
+      id: 'role-user',
+      role_name: 'User',
+      description: 'Regular user with limited access',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  }
+];
+
+const FALLBACK_RIGHTS = [
+  { id: 'right-1', right_name: 'CREATE_QUERY', description: 'Can create new queries', created_at: new Date().toISOString() },
+  { id: 'right-2', right_name: 'UPDATE_QUERY', description: 'Can update existing queries', created_at: new Date().toISOString() },
+  { id: 'right-3', right_name: 'DELETE_QUERY', description: 'Can delete queries', created_at: new Date().toISOString() },
+  { id: 'right-4', right_name: 'SHARE_QUERY', description: 'Can share queries with others', created_at: new Date().toISOString() },
+  { id: 'right-5', right_name: 'CREATE_USER', description: 'Can create new users', created_at: new Date().toISOString() },
+  { id: 'right-6', right_name: 'MANAGE_MASTERS', description: 'Can manage master data', created_at: new Date().toISOString() },
+  { id: 'right-7', right_name: 'VIEW_ADMIN_PANEL', description: 'Can access admin panel', created_at: new Date().toISOString() }
+];
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
 
   useEffect(() => {
-    const getSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          await loadUserData(session.user.id);
-        }
-      } catch (error) {
-        console.error('Error getting session:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    checkSupabaseConnection();
+  }, []);
 
-    getSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          await loadUserData(session.user.id);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-        }
-        setLoading(false);
+  const checkSupabaseConnection = async () => {
+    try {
+      // Try to make a simple query to check if Supabase is connected
+      const { data, error } = await supabase.from('roles').select('id').limit(1);
+      
+      if (error && error.message.includes('relation "roles" does not exist')) {
+        // Tables don't exist yet, but connection is working
+        setIsSupabaseConnected(false);
+      } else if (error) {
+        // Connection error
+        setIsSupabaseConnected(false);
+      } else {
+        // Connection successful
+        setIsSupabaseConnected(true);
+        await getSession();
       }
-    );
+    } catch (error) {
+      console.log('Supabase not connected, using fallback data');
+      setIsSupabaseConnected(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await loadUserData(session.user.id);
+      }
+    } catch (error) {
+      console.error('Error getting session:', error);
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await loadUserData(session.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      }
+    });
 
     return () => subscription.unsubscribe();
-  }, []);
+  };
 
   const loadUserData = async (userId: string) => {
     try {
-      // Get user with role
+      // Get user data with role
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select(`
@@ -84,7 +147,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Get user rights
       const { data: rightsData, error: rightsError } = await supabase
         .from('user_role_rights')
-        .select(`user_rights(*)`)
+        .select(`
+          user_rights(*)
+        `)
         .eq('user_id', userId);
 
       if (rightsError) throw rightsError;
@@ -94,7 +159,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser({
         user: userData as User,
         role: userData.role as Role | null,
-        rights
+        rights: rights
       });
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -103,59 +168,92 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signIn = async (email: string, password: string): Promise<boolean> => {
-  try {
-    // Step 1: Check if user exists in your custom `users` table
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single();
-      
-    console.log("User data:", userData);
-    console.log("User error:", userError);
+    try {
+      if (!isSupabaseConnected) {
+        // Use fallback authentication
+        const fallbackUser = FALLBACK_USERS.find(u => u.email === email && u.password_hash === password);
+        
+        if (!fallbackUser) {
+          toast.error('Invalid email or password');
+          return false;
+        }
 
-    if (userError) {
-      console.error('Supabase userError:', userError);
-      toast.error('Server error while checking user');
+        if (!fallbackUser.is_active) {
+          toast.error('Your account is deactivated. Please contact administrator.');
+          return false;
+        }
+
+        // Set user data for fallback mode
+        const rights = fallbackUser.role?.role_name === 'Admin' ? FALLBACK_RIGHTS : 
+          FALLBACK_RIGHTS.filter(r => ['CREATE_QUERY', 'UPDATE_QUERY', 'SHARE_QUERY'].includes(r.right_name));
+
+        setUser({
+          user: fallbackUser as User,
+          role: fallbackUser.role as Role,
+          rights: rights
+        });
+
+        toast.success('Signed in successfully (Demo Mode)');
+        return true;
+      }
+
+      // Supabase authentication
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (userError || !userData) {
+        toast.error('Invalid email or password');
+        return false;
+      }
+
+      if (!userData.is_active) {
+        toast.error('Your account is deactivated. Please contact administrator.');
+        return false;
+      }
+
+      if (userData.password_hash !== password) {
+        toast.error('Invalid email or password');
+        return false;
+      }
+
+      // Create or sign in with Supabase Auth
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+      if (authError) {
+        // Try to sign up if user doesn't exist in auth
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: email,
+          password: password
+        });
+
+        if (signUpError) {
+          toast.error('Authentication failed');
+          return false;
+        }
+      }
+
+      toast.success('Signed in successfully');
+      return true;
+    } catch (error) {
+      console.error('Sign in error:', error);
+      toast.error('Sign in failed');
       return false;
     }
-
-    if (!userData) {
-      toast.error('Invalid email or password');
-      return false;
-    }
-
-    // Step 2: Check if user is active
-    if (!userData.is_active) {
-      toast.error('Your account is deactivated. Please contact administrator.');
-      return false;
-    }
-
-    // Step 3: Sign in with Supabase Auth
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (authError) {
-      console.error('Supabase authError:', authError);
-      toast.error('Invalid email or password');
-      return false;
-    }
-
-    toast.success('Signed in successfully');
-    return true;
-  } catch (error) {
-    console.error('Sign in error:', error);
-    toast.error('Sign in failed');
-    return false;
-  }
   };
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      if (isSupabaseConnected) {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+      }
+      
       setUser(null);
       toast.success('Signed out successfully');
     } catch (error) {
@@ -166,6 +264,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkUserExists = async (email: string): Promise<boolean> => {
     try {
+      if (!isSupabaseConnected) {
+        return FALLBACK_USERS.some(u => u.email === email);
+      }
+
       const { data, error } = await supabase
         .from('users')
         .select('id')
@@ -186,14 +288,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return user?.rights?.some(right => right.right_name === rightName) || false;
   };
 
-  const value: AuthContextType = {
+  const value = {
     user,
     loading,
     signIn,
     signOut,
     checkUserExists,
     isAdmin,
-    hasRight
+    hasRight,
+    isSupabaseConnected
   };
 
   return (

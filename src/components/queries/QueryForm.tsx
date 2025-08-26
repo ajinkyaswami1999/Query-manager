@@ -36,7 +36,7 @@ export const QueryForm: React.FC<QueryFormProps> = ({
   categories,
   tags
 }) => {
-  const { user, hasRight } = useAuth();
+  const { user, hasRight, isSupabaseConnected } = useAuth();
   const isEdit = !!query;
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<QueryFormData>({
@@ -54,6 +54,12 @@ export const QueryForm: React.FC<QueryFormProps> = ({
 
   const onSubmit = async (data: QueryFormData) => {
     try {
+      if (!isSupabaseConnected) {
+        toast.success(`Query ${isEdit ? 'updated' : 'created'} successfully (Demo Mode)`);
+        onSuccess();
+        return;
+      }
+
       if (isEdit) {
         const { error } = await supabase
           .from('queries')

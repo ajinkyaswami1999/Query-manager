@@ -8,6 +8,30 @@ import { DatabaseEngine, Category, Tag } from '../../types';
 import { formatDate } from '../../utils/validation';
 import toast from 'react-hot-toast';
 import { MasterDataForm } from './MasterDataForm';
+import { useAuth } from '../../hooks/useAuth';
+
+// Fallback data
+const FALLBACK_ENGINES = [
+  { id: 'engine-1', engine_name: 'MySQL', description: 'MySQL Database Engine', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'engine-2', engine_name: 'PostgreSQL', description: 'PostgreSQL Database Engine', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'engine-3', engine_name: 'MongoDB', description: 'MongoDB NoSQL Database', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'engine-4', engine_name: 'SQL Server', description: 'Microsoft SQL Server', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'engine-5', engine_name: 'Oracle', description: 'Oracle Database', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+];
+
+const FALLBACK_CATEGORIES = [
+  { id: 'cat-1', category_name: 'Analytics', description: 'Data analytics and reporting queries', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-2', category_name: 'CRUD Operations', description: 'Create, Read, Update, Delete operations', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-3', category_name: 'Performance', description: 'Performance optimization queries', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-4', category_name: 'Maintenance', description: 'Database maintenance scripts', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+];
+
+const FALLBACK_TAGS = [
+  { id: 'tag-1', tag_name: 'Production', description: 'Production environment queries', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'tag-2', tag_name: 'Development', description: 'Development environment queries', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'tag-3', tag_name: 'Testing', description: 'Testing and QA queries', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'tag-4', tag_name: 'Optimization', description: 'Performance optimization', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+];
 
 interface MasterDataManagementProps {
   activeSection: string;
@@ -21,9 +45,11 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
   const [selectedItem, setSelectedItem] = useState<DatabaseEngine | Category | Tag | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const { isSupabaseConnected } = useAuth();
+
   useEffect(() => {
     loadData();
-  }, [activeSection]);
+  }, [activeSection, isSupabaseConnected]);
 
   const getTableConfig = () => {
     switch (activeSection) {
@@ -63,6 +89,25 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
   const loadData = async () => {
     try {
       setLoading(true);
+      
+      if (!isSupabaseConnected) {
+        // Use fallback data based on section
+        switch (activeSection) {
+          case 'databases':
+            setData(FALLBACK_ENGINES);
+            break;
+          case 'categories':
+            setData(FALLBACK_CATEGORIES);
+            break;
+          case 'tags':
+            setData(FALLBACK_TAGS);
+            break;
+          default:
+            setData(FALLBACK_ENGINES);
+        }
+        return;
+      }
+
       const { data: result, error } = await supabase
         .from(config.table)
         .select('*')
@@ -73,6 +118,20 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error(`Failed to load ${config.title.toLowerCase()}`);
+      // Fallback to demo data on error
+      switch (activeSection) {
+        case 'databases':
+          setData(FALLBACK_ENGINES);
+          break;
+        case 'categories':
+          setData(FALLBACK_CATEGORIES);
+          break;
+        case 'tags':
+          setData(FALLBACK_TAGS);
+          break;
+        default:
+          setData(FALLBACK_ENGINES);
+      }
     } finally {
       setLoading(false);
     }
@@ -84,6 +143,11 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
     }
 
     try {
+      if (!isSupabaseConnected) {
+        toast.error('Delete not available in demo mode');
+        return;
+      }
+
       const { error } = await supabase
         .from(config.table)
         .delete()
@@ -126,18 +190,32 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
 
   return (
     <div className="space-y-6">
+      {/* Connection Status Banner */}
+      {!isSupabaseConnected && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <div className="h-2 w-2 bg-amber-500 rounded-full"></div>
+            <p className="text-sm text-amber-800">
+              <strong>Demo Mode:</strong> Master data management features are limited without Supabase connection.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{config.title}</h1>
           <p className="text-gray-600">{config.description}</p>
         </div>
-        <Button
-          icon={Plus}
-          onClick={() => setShowCreateModal(true)}
-        >
-          Add {config.title.slice(0, -1)}
-        </Button>
+        {isSupabaseConnected && (
+          <Button
+            icon={Plus}
+            onClick={() => setShowCreateModal(true)}
+          >
+            Add {config.title.slice(0, -1)}
+          </Button>
+        )}
       </div>
 
       {/* Search */}
@@ -200,27 +278,31 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex items-center justify-end space-x-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon={Edit}
-                      onClick={() => {
-                        setSelectedItem(item);
-                        setShowEditModal(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
+                    {isSupabaseConnected && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={Edit}
+                          onClick={() => {
+                            setSelectedItem(item);
+                            setShowEditModal(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
 
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon={Trash2}
-                      onClick={() => handleDelete(item.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      Delete
-                    </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={Trash2}
+                          onClick={() => handleDelete(item.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Delete
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -232,7 +314,7 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
           <div className="text-center py-12">
             <h3 className="mt-2 text-sm font-medium text-gray-900">No {config.title.toLowerCase()} found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Get started by adding your first {config.title.slice(0, -1).toLowerCase()}.
+              {isSupabaseConnected ? `Get started by adding your first ${config.title.slice(0, -1).toLowerCase()}.` : 'Connect to Supabase to manage master data.'}
             </p>
           </div>
         )}

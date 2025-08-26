@@ -1,13 +1,45 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Check if environment variables exist
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+// Create a dummy client if environment variables are missing
+let supabase: any;
+
+if (supabaseUrl && supabaseAnonKey) {
+  supabase = createClient(supabaseUrl, supabaseAnonKey);
+} else {
+  // Create a mock client for fallback mode
+  supabase = {
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      signInWithPassword: () => Promise.resolve({ data: null, error: new Error('Supabase not connected') }),
+      signUp: () => Promise.resolve({ data: null, error: new Error('Supabase not connected') }),
+      signOut: () => Promise.resolve({ error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: null, error: new Error('Supabase not connected') }),
+          limit: () => Promise.resolve({ data: null, error: new Error('Supabase not connected') }),
+          order: () => Promise.resolve({ data: null, error: new Error('Supabase not connected') })
+        }),
+        order: () => Promise.resolve({ data: null, error: new Error('Supabase not connected') })
+      }),
+      insert: () => Promise.resolve({ data: null, error: new Error('Supabase not connected') }),
+      update: () => ({
+        eq: () => Promise.resolve({ error: new Error('Supabase not connected') })
+      }),
+      delete: () => ({
+        eq: () => Promise.resolve({ error: new Error('Supabase not connected') })
+      })
+    })
+  };
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export { supabase };
 
 export type Database = {
   public: {

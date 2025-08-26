@@ -6,9 +6,62 @@ import { Modal } from '../ui/Modal';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { User, Role, UserRight } from '../../types';
-import { formatDate, validatePassword } from '../../utils/validation';
+import { formatDate } from '../../utils/validation';
 import toast from 'react-hot-toast';
 import { UserForm } from './UserForm';
+
+// Fallback data
+const FALLBACK_USERS = [
+  {
+    id: 'admin-1',
+    role_id: 'role-admin',
+    name: 'System Administrator',
+    email: 'admin@example.com',
+    password_hash: 'Admin123!@#$4567',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    role: {
+      id: 'role-admin',
+      role_name: 'Admin',
+      description: 'System administrator with full access',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  },
+  {
+    id: 'user-1',
+    role_id: 'role-user',
+    name: 'Demo User',
+    email: 'user@example.com',
+    password_hash: 'User123!@#$4567',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    role: {
+      id: 'role-user',
+      role_name: 'User',
+      description: 'Regular user with limited access',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  }
+];
+
+const FALLBACK_ROLES = [
+  { id: 'role-admin', role_name: 'Admin', description: 'System administrator with full access', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'role-user', role_name: 'User', description: 'Regular user with limited access', created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+];
+
+const FALLBACK_RIGHTS = [
+  { id: 'right-1', right_name: 'CREATE_QUERY', description: 'Can create new queries', created_at: new Date().toISOString() },
+  { id: 'right-2', right_name: 'UPDATE_QUERY', description: 'Can update existing queries', created_at: new Date().toISOString() },
+  { id: 'right-3', right_name: 'DELETE_QUERY', description: 'Can delete queries', created_at: new Date().toISOString() },
+  { id: 'right-4', right_name: 'SHARE_QUERY', description: 'Can share queries with others', created_at: new Date().toISOString() },
+  { id: 'right-5', right_name: 'CREATE_USER', description: 'Can create new users', created_at: new Date().toISOString() },
+  { id: 'right-6', right_name: 'MANAGE_MASTERS', description: 'Can manage master data', created_at: new Date().toISOString() },
+  { id: 'right-7', right_name: 'VIEW_ADMIN_PANEL', description: 'Can access admin panel', created_at: new Date().toISOString() }
+];
 
 export const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -20,17 +73,23 @@ export const UserManagement: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, isSupabaseConnected } = useAuth();
 
   useEffect(() => {
     loadUsers();
     loadRoles();
     loadUserRights();
-  }, []);
+  }, [isSupabaseConnected]);
 
   const loadUsers = async () => {
     try {
       setLoading(true);
+      
+      if (!isSupabaseConnected) {
+        setUsers(FALLBACK_USERS as User[]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('users')
         .select(`
@@ -44,6 +103,7 @@ export const UserManagement: React.FC = () => {
     } catch (error) {
       console.error('Error loading users:', error);
       toast.error('Failed to load users');
+      setUsers(FALLBACK_USERS as User[]);
     } finally {
       setLoading(false);
     }
@@ -51,6 +111,11 @@ export const UserManagement: React.FC = () => {
 
   const loadRoles = async () => {
     try {
+      if (!isSupabaseConnected) {
+        setRoles(FALLBACK_ROLES);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('roles')
         .select('*')
@@ -60,11 +125,17 @@ export const UserManagement: React.FC = () => {
       setRoles(data || []);
     } catch (error) {
       console.error('Error loading roles:', error);
+      setRoles(FALLBACK_ROLES);
     }
   };
 
   const loadUserRights = async () => {
     try {
+      if (!isSupabaseConnected) {
+        setUserRights(FALLBACK_RIGHTS);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('user_rights')
         .select('*')
@@ -74,11 +145,17 @@ export const UserManagement: React.FC = () => {
       setUserRights(data || []);
     } catch (error) {
       console.error('Error loading user rights:', error);
+      setUserRights(FALLBACK_RIGHTS);
     }
   };
 
   const handleToggleUserStatus = async (user: User) => {
     try {
+      if (!isSupabaseConnected) {
+        toast.error('User management not available in demo mode');
+        return;
+      }
+
       const { error } = await supabase
         .from('users')
         .update({ 
@@ -103,6 +180,11 @@ export const UserManagement: React.FC = () => {
     }
 
     try {
+      if (!isSupabaseConnected) {
+        toast.error('User management not available in demo mode');
+        return;
+      }
+
       // First delete user role rights
       await supabase
         .from('user_role_rights')
@@ -151,18 +233,32 @@ export const UserManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Connection Status Banner */}
+      {!isSupabaseConnected && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <div className="h-2 w-2 bg-amber-500 rounded-full"></div>
+            <p className="text-sm text-amber-800">
+              <strong>Demo Mode:</strong> User management features are limited without Supabase connection.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
           <p className="text-gray-600">Manage system users and their permissions</p>
         </div>
-        <Button
-          icon={Plus}
-          onClick={() => setShowCreateModal(true)}
-        >
-          Add User
-        </Button>
+        {isSupabaseConnected && (
+          <Button
+            icon={Plus}
+            onClick={() => setShowCreateModal(true)}
+          >
+            Add User
+          </Button>
+        )}
       </div>
 
       {/* Search */}
@@ -234,37 +330,41 @@ export const UserManagement: React.FC = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex items-center justify-end space-x-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon={user.is_active ? ShieldOff : Shield}
-                      onClick={() => handleToggleUserStatus(user)}
-                    >
-                      {user.is_active ? 'Deactivate' : 'Activate'}
-                    </Button>
-                    
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon={Edit}
-                      onClick={() => {
-                        setSelectedUser(user);
-                        setShowEditModal(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
+                    {isSupabaseConnected && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={user.is_active ? ShieldOff : Shield}
+                          onClick={() => handleToggleUserStatus(user)}
+                        >
+                          {user.is_active ? 'Deactivate' : 'Activate'}
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={Edit}
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setShowEditModal(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
 
-                    {user.id !== currentUser?.user.id && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        icon={Trash2}
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        Delete
-                      </Button>
+                        {user.id !== currentUser?.user.id && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            icon={Trash2}
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 </td>
@@ -278,7 +378,7 @@ export const UserManagement: React.FC = () => {
             <Shield className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Get started by adding your first user.
+              {isSupabaseConnected ? 'Get started by adding your first user.' : 'Connect to Supabase to manage users.'}
             </p>
           </div>
         )}

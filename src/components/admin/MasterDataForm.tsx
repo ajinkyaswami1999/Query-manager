@@ -6,6 +6,7 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { supabase } from '../../lib/supabase';
 import { DatabaseEngine, Category, Tag } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 const masterDataSchema = z.object({
@@ -35,6 +36,7 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
   config
 }) => {
   const isEdit = !!item;
+  const { isSupabaseConnected } = useAuth();
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<MasterDataFormData>({
     resolver: zodResolver(masterDataSchema),
@@ -46,6 +48,11 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
   });
 
   const onSubmit = async (data: MasterDataFormData) => {
+    if (!isSupabaseConnected) {
+      toast.error('Master data management not available in demo mode');
+      return;
+    }
+
     try {
       const payload = {
         [config.nameField]: data.name,
@@ -85,46 +92,60 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <Input
-        label="Name"
-        placeholder={`Enter ${config.title.slice(0, -1).toLowerCase()} name`}
-        error={errors.name?.message}
-        {...register('name')}
-      />
+    <div className="space-y-4">
+      {!isSupabaseConnected && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <p className="text-sm text-amber-800">
+            Master data management is not available in demo mode. Connect to Supabase to enable this feature.
+          </p>
+        </div>
+      )}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Description
-        </label>
-        <textarea
-          rows={3}
-          className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder={`Describe this ${config.title.slice(0, -1).toLowerCase()}...`}
-          {...register('description')}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <Input
+          label="Name"
+          placeholder={`Enter ${config.title.slice(0, -1).toLowerCase()} name`}
+          error={errors.name?.message}
+          disabled={!isSupabaseConnected}
+          {...register('name')}
         />
-      </div>
 
-      <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          id="is_active"
-          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          {...register('is_active')}
-        />
-        <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-          Active
-        </label>
-      </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Description
+          </label>
+          <textarea
+            rows={3}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder={`Describe this ${config.title.slice(0, -1).toLowerCase()}...`}
+            disabled={!isSupabaseConnected}
+            {...register('description')}
+          />
+        </div>
 
-      <div className="flex justify-end space-x-3 pt-4">
-        <Button
-          type="submit"
-          loading={isSubmitting}
-        >
-          {isEdit ? `Update ${config.title.slice(0, -1)}` : `Create ${config.title.slice(0, -1)}`}
-        </Button>
-      </div>
-    </form>
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="is_active"
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            disabled={!isSupabaseConnected}
+            {...register('is_active')}
+          />
+          <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
+            Active
+          </label>
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button
+            type="submit"
+            loading={isSubmitting}
+            disabled={!isSupabaseConnected}
+          >
+            {isEdit ? `Update ${config.title.slice(0, -1)}` : `Create ${config.title.slice(0, -1)}`}
+          </Button>
+        </div>
+      </form>
+    </div>
   );
 };
