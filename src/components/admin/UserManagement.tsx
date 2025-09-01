@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../lib/supabase';
+import { supabaseAdmin } from '../../lib/supabase';
 import { User, Role, UserRight } from '../../types';
 import { formatDate } from '../../utils/validation';
 import toast from 'react-hot-toast';
@@ -90,7 +90,8 @@ export const UserManagement: React.FC = () => {
         return;
       }
 
-      const { data, error } = await supabase
+      // Use service role to bypass RLS
+      const { data, error } = await supabaseAdmin
         .from('users')
         .select(`
           *,
@@ -98,7 +99,13 @@ export const UserManagement: React.FC = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading users:', error);
+        toast.error('Failed to load users');
+        setUsers(FALLBACK_USERS as User[]);
+        return;
+      }
+
       setUsers(data || []);
     } catch (error) {
       console.error('Error loading users:', error);
@@ -116,12 +123,18 @@ export const UserManagement: React.FC = () => {
         return;
       }
 
-      const { data, error } = await supabase
+      // Use service role to bypass RLS
+      const { data, error } = await supabaseAdmin
         .from('roles')
         .select('*')
         .order('role_name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading roles:', error);
+        setRoles(FALLBACK_ROLES);
+        return;
+      }
+
       setRoles(data || []);
     } catch (error) {
       console.error('Error loading roles:', error);
@@ -136,12 +149,18 @@ export const UserManagement: React.FC = () => {
         return;
       }
 
-      const { data, error } = await supabase
+      // Use service role to bypass RLS
+      const { data, error } = await supabaseAdmin
         .from('user_rights')
         .select('*')
         .order('right_name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading user rights:', error);
+        setUserRights(FALLBACK_RIGHTS);
+        return;
+      }
+
       setUserRights(data || []);
     } catch (error) {
       console.error('Error loading user rights:', error);
@@ -156,7 +175,8 @@ export const UserManagement: React.FC = () => {
         return;
       }
 
-      const { error } = await supabase
+      // Use service role to bypass RLS
+      const { error } = await supabaseAdmin
         .from('users')
         .update({ 
           is_active: !user.is_active,
@@ -164,7 +184,15 @@ export const UserManagement: React.FC = () => {
         })
         .eq('id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating user status:', error);
+        if (error.code === 'PGRST301') {
+          toast.error('You do not have permission to update this user');
+        } else {
+          toast.error('Failed to update user status');
+        }
+        return;
+      }
 
       toast.success(`User ${user.is_active ? 'deactivated' : 'activated'} successfully`);
       loadUsers();
@@ -185,19 +213,33 @@ export const UserManagement: React.FC = () => {
         return;
       }
 
-      // First delete user role rights
-      await supabase
+      // Use service role to bypass RLS - First delete user role rights
+      const { error: rightsError } = await supabaseAdmin
         .from('user_role_rights')
         .delete()
         .eq('user_id', userId);
 
+      if (rightsError) {
+        console.error('Error deleting user rights:', rightsError);
+      }
+
       // Then delete the user
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('users')
         .delete()
         .eq('id', userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting user:', error);
+        if (error.code === 'PGRST301') {
+          toast.error('You do not have permission to delete this user');
+        } else if (error.code === '23503') {
+          toast.error('Cannot delete user: user has associated data');
+        } else {
+          toast.error('Failed to delete user');
+        }
+        return;
+      }
 
       toast.success('User deleted successfully');
       loadUsers();

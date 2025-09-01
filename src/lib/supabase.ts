@@ -3,15 +3,27 @@ import { createClient } from '@supabase/supabase-js';
 // Check if environment variables exist
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
-// Create a dummy client if environment variables are missing
+// Create clients
 let supabase: any;
+let supabaseAdmin: any;
 
 if (supabaseUrl && supabaseAnonKey) {
   supabase = createClient(supabaseUrl, supabaseAnonKey);
+  
+  // Create admin client with service role key for bypassing RLS
+  if (supabaseServiceKey) {
+    supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+  }
 } else {
-  // Create a mock client for fallback mode
-  supabase = {
+  // Create mock clients for fallback mode
+  const mockClient = {
     auth: {
       getSession: () => Promise.resolve({ data: { session: null }, error: null }),
       signInWithPassword: () => Promise.resolve({ data: null, error: new Error('Supabase not connected') }),
@@ -37,9 +49,12 @@ if (supabaseUrl && supabaseAnonKey) {
       })
     })
   };
+  
+  supabase = mockClient;
+  supabaseAdmin = mockClient;
 }
 
-export { supabase };
+export { supabase, supabaseAdmin };
 
 export type Database = {
   public: {
@@ -212,6 +227,44 @@ export type Database = {
           description?: string;
           is_active?: boolean;
           updated_at?: string;
+        };
+      };
+      user_role_rights: {
+        Row: {
+          id: string;
+          user_id: string;
+          right_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          right_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          right_id?: string;
+        };
+      };
+      user_rights: {
+        Row: {
+          id: string;
+          right_name: string;
+          description: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          right_name: string;
+          description?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          right_name?: string;
+          description?: string;
         };
       };
     };

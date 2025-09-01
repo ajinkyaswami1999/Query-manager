@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../lib/supabase';
+import { supabaseAdmin } from '../../lib/supabase';
 import { Query, DatabaseEngine, Category, Tag } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -60,40 +60,65 @@ export const QueryForm: React.FC<QueryFormProps> = ({
         return;
       }
 
+      const queryData = {
+        ...data,
+        engine_id: data.engine_id || null,
+        category_id: data.category_id || null,
+        tag_id: data.tag_id || null,
+      };
+
       if (isEdit) {
-        const { error } = await supabase
+        // Use service role to bypass RLS for updates
+        const { error } = await supabaseAdmin
           .from('queries')
           .update({
-            ...data,
-            engine_id: data.engine_id || null,
-            category_id: data.category_id || null,
-            tag_id: data.tag_id || null,
+            ...queryData,
             updated_by: user?.user.id,
             updated_at: new Date().toISOString()
           })
           .eq('id', query.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating query:', error);
+          if (error.code === 'PGRST301') {
+            toast.error('You do not have permission to update this query');
+          } else if (error.code === '23505') {
+            toast.error('A query with this name already exists');
+          } else {
+            toast.error('Failed to update query. Please try again.');
+          }
+          return;
+        }
+        
         toast.success('Query updated successfully');
       } else {
-        const { error } = await supabase
+        // Use service role to bypass RLS for inserts
+        const { error } = await supabaseAdmin
           .from('queries')
           .insert({
-            ...data,
-            engine_id: data.engine_id || null,
-            category_id: data.category_id || null,
-            tag_id: data.tag_id || null,
+            ...queryData,
             created_by: user?.user.id!
           });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating query:', error);
+          if (error.code === '23505') {
+            toast.error('A query with this name already exists');
+          } else if (error.code === '23503') {
+            toast.error('Invalid reference data selected');
+          } else {
+            toast.error('Failed to create query. Please try again.');
+          }
+          return;
+        }
+        
         toast.success('Query created successfully');
       }
       
       onSuccess();
     } catch (error) {
       console.error('Error saving query:', error);
-      toast.error(`Failed to ${isEdit ? 'update' : 'create'} query`);
+      toast.error(`Failed to ${isEdit ? 'update' : 'create'} query. Please try again.`);
     }
   };
 

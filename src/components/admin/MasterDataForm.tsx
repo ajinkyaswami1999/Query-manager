@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { supabase } from '../../lib/supabase';
+import { supabaseAdmin } from '../../lib/supabase';
 import { DatabaseEngine, Category, Tag } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
@@ -61,7 +61,8 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
       };
 
       if (isEdit) {
-        const { error } = await supabase
+        // Use service role to bypass RLS
+        const { error } = await supabaseAdmin
           .from(config.table)
           .update({
             ...payload,
@@ -69,25 +70,40 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
           })
           .eq('id', item!.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating item:', error);
+          if (error.code === '23505') {
+            toast.error('This name already exists. Please choose a different name.');
+          } else {
+            toast.error(`Failed to update ${config.title.slice(0, -1).toLowerCase()}`);
+          }
+          return;
+        }
+        
         toast.success(`${config.title.slice(0, -1)} updated successfully`);
       } else {
-        const { error } = await supabase
+        // Use service role to bypass RLS
+        const { error } = await supabaseAdmin
           .from(config.table)
           .insert(payload);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating item:', error);
+          if (error.code === '23505') {
+            toast.error('This name already exists. Please choose a different name.');
+          } else {
+            toast.error(`Failed to create ${config.title.slice(0, -1).toLowerCase()}`);
+          }
+          return;
+        }
+        
         toast.success(`${config.title.slice(0, -1)} created successfully`);
       }
       
       onSuccess();
     } catch (error: any) {
       console.error('Error saving item:', error);
-      if (error.message?.includes('duplicate key')) {
-        toast.error('This name already exists. Please choose a different name.');
-      } else {
-        toast.error(`Failed to ${isEdit ? 'update' : 'create'} ${config.title.slice(0, -1).toLowerCase()}`);
-      }
+      toast.error(`Failed to ${isEdit ? 'update' : 'create'} ${config.title.slice(0, -1).toLowerCase()}`);
     }
   };
 

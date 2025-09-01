@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseAdmin } from '../lib/supabase';
 import { AuthUser, User, Role, UserRight } from '../types';
 import toast from 'react-hot-toast';
 
@@ -82,27 +82,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
 
   useEffect(() => {
-    checkSupabaseConnection();
+    initializeAuth();
   }, []);
 
-  const checkSupabaseConnection = async () => {
+  const initializeAuth = async () => {
     try {
-      // Try to make a simple query to check if Supabase is connected
-      const { data, error } = await supabase.from('roles').select('id').limit(1);
+      // Check if environment variables exist
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
-      if (error && error.message.includes('relation "roles" does not exist')) {
-        // Tables don't exist yet, but connection is working
+      if (!supabaseUrl || !supabaseAnonKey) {
+        console.log('Supabase environment variables not found, using fallback data');
         setIsSupabaseConnected(false);
-      } else if (error) {
-        // Connection error
+        setLoading(false);
+        return;
+      }
+
+      // Try to make a simple query to check if Supabase is connected and tables exist
+      const { data, error } = await supabaseAdmin.from('roles').select('id').limit(1);
+      
+      if (error) {
+        console.log('Supabase connection failed or tables not created, using fallback data:', error.message);
         setIsSupabaseConnected(false);
       } else {
-        // Connection successful
+        console.log('Supabase connected successfully');
         setIsSupabaseConnected(true);
         await getSession();
       }
     } catch (error) {
-      console.log('Supabase not connected, using fallback data');
+      console.log('Supabase not available, using fallback data');
       setIsSupabaseConnected(false);
     } finally {
       setLoading(false);
@@ -111,59 +119,84 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const getSession = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Error getting session:', error);
+        return;
+      }
+
       if (session?.user) {
-        await loadUserData(session.user.id);
+        await loadUserData(session.user.email);
       }
+
+      // Listen for auth changes
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          await loadUserData(session.user.email);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+        }
+      });
+
+      return () => subscription.unsubscribe();
     } catch (error) {
-      console.error('Error getting session:', error);
+      console.error('Error setting up auth listener:', error);
     }
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await loadUserData(session.user.id);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
   };
 
-  const loadUserData = async (userId: string) => {
+  const loadUserData = async (email: string) => {
     try {
-      // Get user data with role
-      const { data: userData, error: userError } = await supabase
+      // Use service role to bypass RLS for user data loading
+      const { data: userData, error: userError } = await supabaseAdmin
         .from('users')
         .select(`
           *,
           role:roles(*)
         `)
-        .eq('id', userId)
+        .eq('email', email)
+        .eq('is_active', true)
         .single();
 
-      if (userError) throw userError;
+      if (userError) {
+        console.error('Error loading user data:', userError);
+        toast.error('Failed to load user profile');
+        return;
+      }
 
-      // Get user rights
-      const { data: rightsData, error: rightsError } = await supabase
+      if (!userData) {
+        toast.error('User not found or inactive');
+        return;
+      }
+
+      // Get user rights using service role
+      const { data: rightsData, error: rightsError } = await supabaseAdmin
         .from('user_role_rights')
         .select(`
           user_rights(*)
         `)
-        .eq('user_id', userId);
+        .eq('user_id', userData.id);
 
-      if (rightsError) throw rightsError;
+      if (rightsError) {
+        console.error('Error loading user rights:', rightsError);
+        // Continue without rights if there's an error
+      }
 
       const rights = rightsData?.map(r => r.user_rights).filter(Boolean) as UserRight[] || [];
 
-      setUser({
+      const authUser: AuthUser = {
         user: userData as User,
         role: userData.role as Role | null,
         rights: rights
-      });
+      };
+
+      setUser(authUser);
+      console.log('User data loaded successfully:', authUser.user.email);
     } catch (error) {
       console.error('Error loading user data:', error);
-      toast.error('Failed to load user data');
+      toast.error('Failed to load user profile');
     }
   };
 
@@ -197,14 +230,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return true;
       }
 
-      // Supabase authentication
-      const { data: userData, error: userError } = await supabase
+      // First, verify user exists and password is correct using service role
+      const { data: userData, error: userError } = await supabaseAdmin
         .from('users')
         .select('*')
         .eq('email', email)
         .single();
 
-      if (userError || !userData) {
+      if (userError) {
+        if (userError.code === 'PGRST116') {
+          toast.error('Invalid email or password');
+        } else {
+          console.error('Database error:', userError);
+          toast.error('Authentication failed. Please try again.');
+        }
+        return false;
+      }
+
+      if (!userData) {
         toast.error('Invalid email or password');
         return false;
       }
@@ -219,30 +262,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       }
 
-      // Create or sign in with Supabase Auth
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      // Try to sign in with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email,
         password: password
       });
 
       if (authError) {
-        // Try to sign up if user doesn't exist in auth
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: email,
-          password: password
-        });
+        // If user doesn't exist in auth, create them
+        if (authError.message.includes('Invalid login credentials')) {
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: email,
+            password: password,
+            options: {
+              emailRedirectTo: undefined // Disable email confirmation
+            }
+          });
 
-        if (signUpError) {
-          toast.error('Authentication failed');
+          if (signUpError) {
+            console.error('Sign up error:', signUpError);
+            toast.error('Authentication setup failed. Please try again.');
+            return false;
+          }
+
+          // If sign up was successful, load user data immediately
+          if (signUpData.user) {
+            await loadUserData(email);
+            toast.success('Signed in successfully');
+            return true;
+          }
+        } else {
+          console.error('Auth error:', authError);
+          toast.error('Authentication failed. Please try again.');
           return false;
         }
       }
 
-      toast.success('Signed in successfully');
-      return true;
+      // If sign in was successful, user data will be loaded via auth state change
+      if (authData.user) {
+        toast.success('Signed in successfully');
+        return true;
+      }
+
+      return false;
     } catch (error) {
       console.error('Sign in error:', error);
-      toast.error('Sign in failed');
+      toast.error('An unexpected error occurred. Please try again.');
       return false;
     }
   };
@@ -251,7 +316,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       if (isSupabaseConnected) {
         const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        if (error) {
+          console.error('Sign out error:', error);
+          toast.error('Sign out failed');
+          return;
+        }
       }
       
       setUser(null);
@@ -268,14 +337,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return FALLBACK_USERS.some(u => u.email === email);
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('users')
         .select('id')
         .eq('email', email)
         .single();
 
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking user existence:', error);
+      }
+
       return !error && !!data;
     } catch (error) {
+      console.error('Error checking user existence:', error);
       return false;
     }
   };

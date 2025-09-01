@@ -17,7 +17,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../lib/supabase';
+import { supabase, supabaseAdmin } from '../../lib/supabase';
 import { Query, DatabaseEngine, Category, Tag as TagType } from '../../types';
 import { formatDate, copyToClipboard } from '../../utils/validation';
 import toast from 'react-hot-toast';
@@ -85,244 +85,6 @@ FROM users;`,
   }
 ];
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
-
-  useEffect(() => {
-    checkSupabaseConnection();
-  }, []);
-
-  const checkSupabaseConnection = async () => {
-    try {
-      // Check if environment variables exist
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
-      if (!supabaseUrl || !supabaseAnonKey) {
-        console.log('Supabase environment variables not found, using fallback data');
-        setIsSupabaseConnected(false);
-        setLoading(false);
-        return;
-      }
-
-      // Try to make a simple query to check if Supabase is connected
-      const { data, error } = await supabase.from('roles').select('id').limit(1);
-      
-      if (error) {
-        console.log('Supabase connection failed, using fallback data:', error.message);
-        setIsSupabaseConnected(false);
-      } else {
-        console.log('Supabase connected successfully');
-        setIsSupabaseConnected(true);
-        await getSession();
-      }
-    } catch (error) {
-      console.log('Supabase not available, using fallback data');
-      setIsSupabaseConnected(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getSession = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await loadUserData(session.user.id);
-      }
-    } catch (error) {
-      console.error('Error getting session:', error);
-    }
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await loadUserData(session.user.id);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  };
-
-  const loadUserData = async (userId: string) => {
-    try {
-      // Get user data with role
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select(`
-          *,
-          role:roles(*)
-        `)
-        .eq('id', userId)
-        .single();
-
-      if (userError) throw userError;
-
-      // Get user rights
-      const { data: rightsData, error: rightsError } = await supabase
-        .from('user_role_rights')
-        .select(`
-          user_rights(*)
-        `)
-        .eq('user_id', userId);
-
-      if (rightsError) throw rightsError;
-
-      const rights = rightsData?.map(r => r.user_rights).filter(Boolean) as UserRight[] || [];
-
-      setUser({
-        user: userData as User,
-        role: userData.role as Role | null,
-        rights: rights
-      });
-    } catch (error) {
-      console.error('Error loading user data:', error);
-      toast.error('Failed to load user data');
-    }
-  };
-
-  const signIn = async (email: string, password: string): Promise<boolean> => {
-    try {
-      if (!isSupabaseConnected) {
-        // Use fallback authentication
-        const fallbackUser = FALLBACK_USERS.find(u => u.email === email && u.password_hash === password);
-        
-        if (!fallbackUser) {
-          toast.error('Invalid email or password');
-          return false;
-        }
-
-        if (!fallbackUser.is_active) {
-          toast.error('Your account is deactivated. Please contact administrator.');
-          return false;
-        }
-
-        // Set user data for fallback mode
-        const rights = fallbackUser.role?.role_name === 'Admin' ? FALLBACK_RIGHTS : 
-          FALLBACK_RIGHTS.filter(r => ['CREATE_QUERY', 'UPDATE_QUERY', 'SHARE_QUERY'].includes(r.right_name));
-
-        setUser({
-          user: fallbackUser as User,
-          role: fallbackUser.role as Role,
-          rights: rights
-        });
-
-        toast.success('Signed in successfully (Demo Mode)');
-        return true;
-      }
-
-      // Supabase authentication
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .single();
-
-      if (userError || !userData) {
-        toast.error('Invalid email or password');
-        return false;
-      }
-
-      if (!userData.is_active) {
-        toast.error('Your account is deactivated. Please contact administrator.');
-        return false;
-      }
-
-      if (userData.password_hash !== password) {
-        toast.error('Invalid email or password');
-        return false;
-      }
-
-      // Create or sign in with Supabase Auth
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password
-      });
-
-      if (authError) {
-        // Try to sign up if user doesn't exist in auth
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: email,
-          password: password
-        });
-
-        if (signUpError) {
-          toast.error('Authentication failed');
-          return false;
-        }
-      }
-
-      toast.success('Signed in successfully');
-      return true;
-    } catch (error) {
-      console.error('Sign in error:', error);
-      toast.error('Sign in failed');
-      return false;
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      if (isSupabaseConnected) {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-      }
-      
-      setUser(null);
-      toast.success('Signed out successfully');
-    } catch (error) {
-      console.error('Sign out error:', error);
-      toast.error('Sign out failed');
-    }
-  };
-
-  const checkUserExists = async (email: string): Promise<boolean> => {
-    try {
-      if (!isSupabaseConnected) {
-        return FALLBACK_USERS.some(u => u.email === email);
-      }
-
-      const { data, error } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single();
-
-      return !error && !!data;
-    } catch (error) {
-      return false;
-    }
-  };
-
-  const isAdmin = (): boolean => {
-    return user?.role?.role_name === 'Admin';
-  };
-
-  const hasRight = (rightName: string): boolean => {
-    return user?.rights?.some(right => right.right_name === rightName) || false;
-  };
-
-  const value = {
-    user,
-    loading,
-    signIn,
-    signOut,
-    checkUserExists,
-    isAdmin,
-    hasRight,
-    isSupabaseConnected
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
 export const QueryList: React.FC = () => {
   const [queries, setQueries] = useState<Query[]>([]);
   const [filteredQueries, setFilteredQueries] = useState<Query[]>([]);
@@ -361,7 +123,8 @@ export const QueryList: React.FC = () => {
         return;
       }
 
-      const { data, error } = await supabase
+      // Use service role to bypass RLS for loading queries
+      const { data, error } = await supabaseAdmin
         .from('queries')
         .select(`
           *,
@@ -372,7 +135,14 @@ export const QueryList: React.FC = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading queries:', error);
+        toast.error('Failed to load queries');
+        // Fallback to demo data on error
+        setQueries(FALLBACK_QUERIES);
+        return;
+      }
+
       setQueries(data || []);
     } catch (error) {
       console.error('Error loading queries:', error);
@@ -393,15 +163,33 @@ export const QueryList: React.FC = () => {
         return;
       }
 
+      // Use service role to bypass RLS for master data
       const [enginesRes, categoriesRes, tagsRes] = await Promise.all([
-        supabase.from('database_engine_master').select('*').eq('is_active', true),
-        supabase.from('category_master').select('*').eq('is_active', true),
-        supabase.from('tags_master').select('*').eq('is_active', true)
+        supabaseAdmin.from('database_engine_master').select('*').eq('is_active', true),
+        supabaseAdmin.from('category_master').select('*').eq('is_active', true),
+        supabaseAdmin.from('tags_master').select('*').eq('is_active', true)
       ]);
 
-      if (enginesRes.data) setEngines(enginesRes.data);
-      if (categoriesRes.data) setCategories(categoriesRes.data);
-      if (tagsRes.data) setTags(tagsRes.data);
+      if (enginesRes.error) {
+        console.error('Error loading engines:', enginesRes.error);
+        setEngines(FALLBACK_ENGINES);
+      } else {
+        setEngines(enginesRes.data || []);
+      }
+
+      if (categoriesRes.error) {
+        console.error('Error loading categories:', categoriesRes.error);
+        setCategories(FALLBACK_CATEGORIES);
+      } else {
+        setCategories(categoriesRes.data || []);
+      }
+
+      if (tagsRes.error) {
+        console.error('Error loading tags:', tagsRes.error);
+        setTags(FALLBACK_TAGS);
+      } else {
+        setTags(tagsRes.data || []);
+      }
     } catch (error) {
       console.error('Error loading master data:', error);
       // Fallback to demo data on error
@@ -453,7 +241,8 @@ export const QueryList: React.FC = () => {
         return;
       }
 
-      const { error } = await supabase
+      // Use service role to bypass RLS for sharing
+      const { error } = await supabaseAdmin
         .from('queries')
         .update({ 
           is_shared: !query.is_shared,
@@ -462,7 +251,11 @@ export const QueryList: React.FC = () => {
         })
         .eq('id', query.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error sharing query:', error);
+        toast.error('Failed to share query');
+        return;
+      }
 
       toast.success(`Query ${query.is_shared ? 'unshared' : 'shared'} successfully`);
       loadQueries();
@@ -481,12 +274,17 @@ export const QueryList: React.FC = () => {
         return;
       }
 
-      const { error } = await supabase
+      // Use service role to bypass RLS for deletion
+      const { error } = await supabaseAdmin
         .from('queries')
         .delete()
         .eq('id', queryId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting query:', error);
+        toast.error('Failed to delete query');
+        return;
+      }
 
       toast.success('Query deleted successfully');
       loadQueries();

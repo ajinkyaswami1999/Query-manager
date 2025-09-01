@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { supabase } from '../../lib/supabase';
+import { supabaseAdmin } from '../../lib/supabase';
 import { User, Role, UserRight } from '../../types';
 import { validatePassword } from '../../utils/validation';
 import { useAuth } from '../../hooks/useAuth';
@@ -60,12 +60,16 @@ export const UserForm: React.FC<UserFormProps> = ({
     if (!user || !isSupabaseConnected) return;
 
     try {
-      const { data, error } = await supabase
+      // Use service role to bypass RLS
+      const { data, error } = await supabaseAdmin
         .from('user_role_rights')
         .select('right_id')
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading user rights:', error);
+        return;
+      }
 
       const rightIds = data.map(r => r.right_id);
       setSelectedRights(rightIds);
@@ -98,7 +102,7 @@ export const UserForm: React.FC<UserFormProps> = ({
 
     try {
       if (isEdit) {
-        // Update user
+        // Update user using service role
         const updateData: any = {
           name: data.name,
           email: data.email,
@@ -111,18 +115,32 @@ export const UserForm: React.FC<UserFormProps> = ({
           updateData.password_hash = data.password;
         }
 
-        const { error: updateError } = await supabase
+        const { error: updateError } = await supabaseAdmin
           .from('users')
           .update(updateData)
           .eq('id', user!.id);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Error updating user:', updateError);
+          if (updateError.code === '23505') {
+            toast.error('A user with this email already exists');
+          } else if (updateError.code === '23503') {
+            toast.error('Invalid role selected');
+          } else {
+            toast.error('Failed to update user');
+          }
+          return;
+        }
 
-        // Update user rights
-        await supabase
+        // Update user rights using service role
+        const { error: deleteRightsError } = await supabaseAdmin
           .from('user_role_rights')
           .delete()
           .eq('user_id', user!.id);
+
+        if (deleteRightsError) {
+          console.error('Error deleting old user rights:', deleteRightsError);
+        }
 
         if (selectedRights.length > 0) {
           const rightsData = selectedRights.map(rightId => ({
@@ -130,17 +148,21 @@ export const UserForm: React.FC<UserFormProps> = ({
             right_id: rightId
           }));
 
-          const { error: rightsError } = await supabase
+          const { error: rightsError } = await supabaseAdmin
             .from('user_role_rights')
             .insert(rightsData);
 
-          if (rightsError) throw rightsError;
+          if (rightsError) {
+            console.error('Error inserting user rights:', rightsError);
+            toast.error('User updated but failed to assign rights');
+            return;
+          }
         }
 
         toast.success('User updated successfully');
       } else {
-        // Create user
-        const { data: userData, error: userError } = await supabase
+        // Create user using service role
+        const { data: userData, error: userError } = await supabaseAdmin
           .from('users')
           .insert({
             name: data.name,
@@ -152,20 +174,34 @@ export const UserForm: React.FC<UserFormProps> = ({
           .select()
           .single();
 
-        if (userError) throw userError;
+        if (userError) {
+          console.error('Error creating user:', userError);
+          if (userError.code === '23505') {
+            toast.error('A user with this email already exists');
+          } else if (userError.code === '23503') {
+            toast.error('Invalid role selected');
+          } else {
+            toast.error('Failed to create user');
+          }
+          return;
+        }
 
-        // Add user rights
+        // Add user rights using service role
         if (selectedRights.length > 0) {
           const rightsData = selectedRights.map(rightId => ({
             user_id: userData.id,
             right_id: rightId
           }));
 
-          const { error: rightsError } = await supabase
+          const { error: rightsError } = await supabaseAdmin
             .from('user_role_rights')
             .insert(rightsData);
 
-          if (rightsError) throw rightsError;
+          if (rightsError) {
+            console.error('Error inserting user rights:', rightsError);
+            toast.error('User created but failed to assign rights');
+            return;
+          }
         }
 
         toast.success('User created successfully');

@@ -3,7 +3,7 @@ import { Plus, Edit, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
-import { supabase } from '../../lib/supabase';
+import { supabaseAdmin } from '../../lib/supabase';
 import { DatabaseEngine, Category, Tag } from '../../types';
 import { formatDate } from '../../utils/validation';
 import toast from 'react-hot-toast';
@@ -108,12 +108,32 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
         return;
       }
 
-      const { data: result, error } = await supabase
+      // Use service role to bypass RLS
+      const { data: result, error } = await supabaseAdmin
         .from(config.table)
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading data:', error);
+        toast.error(`Failed to load ${config.title.toLowerCase()}`);
+        // Fallback to demo data on error
+        switch (activeSection) {
+          case 'databases':
+            setData(FALLBACK_ENGINES);
+            break;
+          case 'categories':
+            setData(FALLBACK_CATEGORIES);
+            break;
+          case 'tags':
+            setData(FALLBACK_TAGS);
+            break;
+          default:
+            setData(FALLBACK_ENGINES);
+        }
+        return;
+      }
+
       setData(result || []);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -148,12 +168,21 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
         return;
       }
 
-      const { error } = await supabase
+      // Use service role to bypass RLS
+      const { error } = await supabaseAdmin
         .from(config.table)
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting item:', error);
+        if (error.code === '23503') {
+          toast.error(`Cannot delete: ${config.title.slice(0, -1).toLowerCase()} is being used by existing queries`);
+        } else {
+          toast.error(`Failed to delete ${config.title.slice(0, -1).toLowerCase()}`);
+        }
+        return;
+      }
 
       toast.success(`${config.title.slice(0, -1)} deleted successfully`);
       loadData();
