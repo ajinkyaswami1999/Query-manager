@@ -95,13 +95,21 @@ export const UserManagement: React.FC = () => {
         .from('users')
         .select(`
           *,
-          role:roles(*)
+          role:roles!users_role_id_fkey(*)
         `)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error loading users:', error);
-        toast.error('Failed to load users');
+        if (error.code === 'PGRST301') {
+          toast.error('Access denied: insufficient permissions to load users');
+        } else if (error.code === 'PGRST116') {
+          toast.error('Database tables not found. Please ensure migrations are applied.');
+        } else if (error.message.includes('relation') && error.message.includes('does not exist')) {
+          toast.error('Database schema incomplete. Please run migrations.');
+        } else {
+          toast.error(`Failed to load users: ${error.message}`);
+        }
         setUsers(FALLBACK_USERS as User[]);
         return;
       }
@@ -109,7 +117,7 @@ export const UserManagement: React.FC = () => {
       setUsers(data || []);
     } catch (error) {
       console.error('Error loading users:', error);
-      toast.error('Failed to load users');
+      toast.error('Network error: Failed to connect to database');
       setUsers(FALLBACK_USERS as User[]);
     } finally {
       setLoading(false);
@@ -187,9 +195,11 @@ export const UserManagement: React.FC = () => {
       if (error) {
         console.error('Error updating user status:', error);
         if (error.code === 'PGRST301') {
-          toast.error('You do not have permission to update this user');
+          toast.error('Access denied: insufficient permissions to update user status');
+        } else if (error.code === 'PGRST116') {
+          toast.error('User not found');
         } else {
-          toast.error('Failed to update user status');
+          toast.error(`Failed to update user status: ${error.message}`);
         }
         return;
       }
@@ -198,7 +208,7 @@ export const UserManagement: React.FC = () => {
       loadUsers();
     } catch (error) {
       console.error('Error updating user status:', error);
-      toast.error('Failed to update user status');
+      toast.error('Network error: Failed to update user status');
     }
   };
 
@@ -232,11 +242,13 @@ export const UserManagement: React.FC = () => {
       if (error) {
         console.error('Error deleting user:', error);
         if (error.code === 'PGRST301') {
-          toast.error('You do not have permission to delete this user');
+          toast.error('Access denied: insufficient permissions to delete user');
+        } else if (error.code === 'PGRST116') {
+          toast.error('User not found');
         } else if (error.code === '23503') {
-          toast.error('Cannot delete user: user has associated data');
+          toast.error('Cannot delete user: user has associated queries or data');
         } else {
-          toast.error('Failed to delete user');
+          toast.error(`Failed to delete user: ${error.message}`);
         }
         return;
       }
@@ -245,7 +257,7 @@ export const UserManagement: React.FC = () => {
       loadUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
-      toast.error('Failed to delete user');
+      toast.error('Network error: Failed to delete user');
     }
   };
 

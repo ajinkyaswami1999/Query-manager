@@ -154,7 +154,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .from('users')
         .select(`
           *,
-          role:roles(*)
+          role:roles!users_role_id_fkey(*)
         `)
         .eq('email', email)
         .eq('is_active', true)
@@ -162,7 +162,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (userError) {
         console.error('Error loading user data:', userError);
-        toast.error('Failed to load user profile');
+        if (userError.code === 'PGRST116') {
+          toast.error('User profile not found');
+        } else if (userError.message.includes('relation') && userError.message.includes('does not exist')) {
+          toast.error('Database schema incomplete. Please run migrations.');
+        } else {
+          toast.error(`Failed to load user profile: ${userError.message}`);
+        }
         return;
       }
 
@@ -181,6 +187,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (rightsError) {
         console.error('Error loading user rights:', rightsError);
+        toast.error('Warning: Failed to load user permissions');
         // Continue without rights if there's an error
       }
 
@@ -196,7 +203,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('User data loaded successfully:', authUser.user.email);
     } catch (error) {
       console.error('Error loading user data:', error);
-      toast.error('Failed to load user profile');
+      toast.error('Network error: Failed to load user profile');
     }
   };
 
@@ -230,46 +237,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return true;
       }
 
-      // First, verify user exists and password is correct using service role
+      // First, verify user exists and is active using service role
       const { data: userData, error: userError } = await supabaseAdmin
         .from('users')
-        .select('*')
+        .select(`
+          *,
+          role:roles!users_role_id_fkey(*)
+        `)
         .eq('email', email)
+        .eq('is_active', true)
         .single();
 
       if (userError) {
         if (userError.code === 'PGRST116') {
           toast.error('Invalid email or password');
+        } else if (userError.message.includes('relation') && userError.message.includes('does not exist')) {
+          toast.error('Database not properly configured. Please contact administrator.');
+        } else if (userError.code === 'PGRST301') {
+          toast.error('Access denied: insufficient permissions');
         } else {
           console.error('Database error:', userError);
-          toast.error('Authentication failed. Please try again.');
+          toast.error(`Authentication failed: ${userError.message}`);
         }
         return false;
       }
 
       if (!userData) {
-        toast.error('Invalid email or password');
+        toast.error('User not found or account is inactive');
         return false;
       }
 
-      if (!userData.is_active) {
-        toast.error('Your account is deactivated. Please contact administrator.');
-        return false;
-      }
-
+      // Verify password
       if (userData.password_hash !== password) {
         toast.error('Invalid email or password');
         return false;
       }
 
-      // Try to sign in with Supabase Auth
+      // Create or sign in with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email,
         password: password
       });
 
       if (authError) {
-        // If user doesn't exist in auth, create them
+        // If user doesn't exist in auth system, create them
         if (authError.message.includes('Invalid login credentials')) {
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: email,
@@ -281,25 +292,53 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           if (signUpError) {
             console.error('Sign up error:', signUpError);
-            toast.error('Authentication setup failed. Please try again.');
+            if (signUpError.message.includes('already registered')) {
+              toast.error('User already exists in authentication system');
+            } else if (signUpError.message.includes('Password should be')) {
+              toast.error('Password does not meet authentication system requirements');
+            } else {
+              toast.error(`Authentication setup failed: ${signUpError.message}`);
+            }
             return false;
           }
 
-          // If sign up was successful, load user data immediately
+          // Sign up successful, load user data
           if (signUpData.user) {
-            await loadUserData(email);
+            // Load user data with the existing database user
+            const rights = await loadUserRights(userData.id);
+            const authUser: AuthUser = {
+              user: userData as User,
+              role: userData.role as Role | null,
+              rights: rights
+            };
+            setUser(authUser);
             toast.success('Signed in successfully');
             return true;
           }
         } else {
           console.error('Auth error:', authError);
-          toast.error('Authentication failed. Please try again.');
+          if (authError.message.includes('Invalid login credentials')) {
+            toast.error('Invalid email or password');
+          } else if (authError.message.includes('Email not confirmed')) {
+            toast.error('Please confirm your email address');
+          } else if (authError.message.includes('too_many_requests')) {
+            toast.error('Too many login attempts. Please try again later.');
+          } else {
+            toast.error(`Authentication failed: ${authError.message}`);
+          }
           return false;
         }
       }
 
-      // If sign in was successful, user data will be loaded via auth state change
+      // Sign in successful, load user data
       if (authData.user) {
+        const rights = await loadUserRights(userData.id);
+        const authUser: AuthUser = {
+          user: userData as User,
+          role: userData.role as Role | null,
+          rights: rights
+        };
+        setUser(authUser);
         toast.success('Signed in successfully');
         return true;
       }
@@ -307,8 +346,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return false;
     } catch (error) {
       console.error('Sign in error:', error);
-      toast.error('An unexpected error occurred. Please try again.');
+      toast.error('Network error: Unable to connect to authentication service');
       return false;
+    }
+  };
+
+  const loadUserRights = async (userId: string): Promise<UserRight[]> => {
+    try {
+      if (!isSupabaseConnected) {
+        return [];
+      }
+
+      const { data: rightsData, error: rightsError } = await supabaseAdmin
+        .from('user_role_rights')
+        .select(`
+          user_rights(*)
+        `)
+        .eq('user_id', userId);
+
+      if (rightsError) {
+        console.error('Error loading user rights:', rightsError);
+        return [];
+      }
+
+      return rightsData?.map(r => r.user_rights).filter(Boolean) as UserRight[] || [];
+    } catch (error) {
+      console.error('Error loading user rights:', error);
+      return [];
     }
   };
 
@@ -328,28 +392,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Sign out error:', error);
       toast.error('Sign out failed');
-    }
-  };
-
-  const checkUserExists = async (email: string): Promise<boolean> => {
-    try {
-      if (!isSupabaseConnected) {
-        return FALLBACK_USERS.some(u => u.email === email);
-      }
-
-      const { data, error } = await supabaseAdmin
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single();
-
+      // Load user rights
+      const rights = await loadUserRights(userData.id);
       if (error && error.code !== 'PGRST116') {
         console.error('Error checking user existence:', error);
+        // Don't show error toast for user existence check as it's used internally
       }
 
       return !error && !!data;
     } catch (error) {
+        } else if (userError.code === 'PGRST301') {
+          toast.error('Access denied: insufficient permissions to load profile');
       console.error('Error checking user existence:', error);
+      // Don't show error toast for user existence check as it's used internally
       return false;
     }
   };

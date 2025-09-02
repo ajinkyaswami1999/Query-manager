@@ -131,13 +131,23 @@ export const QueryList: React.FC = () => {
           engine:database_engine_master(*),
           category:category_master(*),
           tag:tags_master(*),
-          creator:users(name, email)
+          creator:users!queries_created_by_fkey(name, email)
         `)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error loading queries:', error);
-        toast.error('Failed to load queries');
+        if (error.code === 'PGRST301') {
+          toast.error('Access denied: insufficient permissions to load queries');
+        } else if (error.code === 'PGRST116') {
+          toast.error('Database tables not found. Please ensure migrations are applied.');
+        } else if (error.message.includes('relation') && error.message.includes('does not exist')) {
+          toast.error('Database schema incomplete. Please run migrations.');
+        } else if (error.message.includes('foreign key')) {
+          toast.error('Database relationship error. Please contact administrator.');
+        } else {
+          toast.error(`Failed to load queries: ${error.message}`);
+        }
         // Fallback to demo data on error
         setQueries(FALLBACK_QUERIES);
         return;
@@ -146,7 +156,7 @@ export const QueryList: React.FC = () => {
       setQueries(data || []);
     } catch (error) {
       console.error('Error loading queries:', error);
-      toast.error('Failed to load queries');
+      toast.error('Network error: Failed to connect to database');
       // Fallback to demo data on error
       setQueries(FALLBACK_QUERIES);
     } finally {
@@ -172,6 +182,7 @@ export const QueryList: React.FC = () => {
 
       if (enginesRes.error) {
         console.error('Error loading engines:', enginesRes.error);
+        toast.error('Failed to load database engines');
         setEngines(FALLBACK_ENGINES);
       } else {
         setEngines(enginesRes.data || []);
@@ -179,6 +190,7 @@ export const QueryList: React.FC = () => {
 
       if (categoriesRes.error) {
         console.error('Error loading categories:', categoriesRes.error);
+        toast.error('Failed to load categories');
         setCategories(FALLBACK_CATEGORIES);
       } else {
         setCategories(categoriesRes.data || []);
@@ -186,12 +198,14 @@ export const QueryList: React.FC = () => {
 
       if (tagsRes.error) {
         console.error('Error loading tags:', tagsRes.error);
+        toast.error('Failed to load tags');
         setTags(FALLBACK_TAGS);
       } else {
         setTags(tagsRes.data || []);
       }
     } catch (error) {
       console.error('Error loading master data:', error);
+      toast.error('Network error: Failed to load master data');
       // Fallback to demo data on error
       setEngines(FALLBACK_ENGINES);
       setCategories(FALLBACK_CATEGORIES);
@@ -253,7 +267,13 @@ export const QueryList: React.FC = () => {
 
       if (error) {
         console.error('Error sharing query:', error);
-        toast.error('Failed to share query');
+        if (error.code === 'PGRST301') {
+          toast.error('Access denied: insufficient permissions to share query');
+        } else if (error.code === 'PGRST116') {
+          toast.error('Query not found');
+        } else {
+          toast.error(`Failed to share query: ${error.message}`);
+        }
         return;
       }
 
@@ -261,7 +281,7 @@ export const QueryList: React.FC = () => {
       loadQueries();
     } catch (error) {
       console.error('Error sharing query:', error);
-      toast.error('Failed to share query');
+      toast.error('Network error: Failed to update query sharing status');
     }
   };
 
@@ -282,7 +302,15 @@ export const QueryList: React.FC = () => {
 
       if (error) {
         console.error('Error deleting query:', error);
-        toast.error('Failed to delete query');
+        if (error.code === 'PGRST301') {
+          toast.error('Access denied: insufficient permissions to delete query');
+        } else if (error.code === 'PGRST116') {
+          toast.error('Query not found');
+        } else if (error.code === '23503') {
+          toast.error('Cannot delete: query is referenced by other data');
+        } else {
+          toast.error(`Failed to delete query: ${error.message}`);
+        }
         return;
       }
 
@@ -290,7 +318,7 @@ export const QueryList: React.FC = () => {
       loadQueries();
     } catch (error) {
       console.error('Error deleting query:', error);
-      toast.error('Failed to delete query');
+      toast.error('Network error: Failed to delete query');
     }
   };
 

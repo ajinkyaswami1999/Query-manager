@@ -116,7 +116,15 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
 
       if (error) {
         console.error('Error loading data:', error);
-        toast.error(`Failed to load ${config.title.toLowerCase()}`);
+        if (error.code === 'PGRST301') {
+          toast.error(`Access denied: insufficient permissions to load ${config.title.toLowerCase()}`);
+        } else if (error.code === 'PGRST116') {
+          toast.error('Database tables not found. Please ensure migrations are applied.');
+        } else if (error.message.includes('relation') && error.message.includes('does not exist')) {
+          toast.error('Database schema incomplete. Please run migrations.');
+        } else {
+          toast.error(`Failed to load ${config.title.toLowerCase()}: ${error.message}`);
+        }
         // Fallback to demo data on error
         switch (activeSection) {
           case 'databases':
@@ -137,7 +145,7 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
       setData(result || []);
     } catch (error) {
       console.error('Error loading data:', error);
-      toast.error(`Failed to load ${config.title.toLowerCase()}`);
+      toast.error(`Network error: Failed to connect to database`);
       // Fallback to demo data on error
       switch (activeSection) {
         case 'databases':
@@ -177,9 +185,13 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
       if (error) {
         console.error('Error deleting item:', error);
         if (error.code === '23503') {
-          toast.error(`Cannot delete: ${config.title.slice(0, -1).toLowerCase()} is being used by existing queries`);
+          toast.error(`Cannot delete: ${config.title.slice(0, -1).toLowerCase()} is being used by existing queries or data`);
+        } else if (error.code === 'PGRST301') {
+          toast.error(`Access denied: insufficient permissions to delete ${config.title.slice(0, -1).toLowerCase()}`);
+        } else if (error.code === 'PGRST116') {
+          toast.error(`${config.title.slice(0, -1)} not found`);
         } else {
-          toast.error(`Failed to delete ${config.title.slice(0, -1).toLowerCase()}`);
+          toast.error(`Failed to delete ${config.title.slice(0, -1).toLowerCase()}: ${error.message}`);
         }
         return;
       }
@@ -188,7 +200,7 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
       loadData();
     } catch (error) {
       console.error('Error deleting item:', error);
-      toast.error(`Failed to delete ${config.title.slice(0, -1).toLowerCase()}`);
+      toast.error(`Network error: Failed to delete ${config.title.slice(0, -1).toLowerCase()}`);
     }
   };
 

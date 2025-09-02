@@ -126,8 +126,14 @@ export const UserForm: React.FC<UserFormProps> = ({
             toast.error('A user with this email already exists');
           } else if (updateError.code === '23503') {
             toast.error('Invalid role selected');
+          } else if (updateError.code === 'PGRST301') {
+            toast.error('Access denied: insufficient permissions to update user');
+          } else if (updateError.code === 'PGRST116') {
+            toast.error('User not found');
+          } else if (updateError.code === '42501') {
+            toast.error('Database permission error. Please contact administrator.');
           } else {
-            toast.error('Failed to update user');
+            toast.error(`Failed to update user: ${updateError.message}`);
           }
           return;
         }
@@ -140,6 +146,7 @@ export const UserForm: React.FC<UserFormProps> = ({
 
         if (deleteRightsError) {
           console.error('Error deleting old user rights:', deleteRightsError);
+          // Don't show error for rights deletion as it might not exist
         }
 
         if (selectedRights.length > 0) {
@@ -154,22 +161,37 @@ export const UserForm: React.FC<UserFormProps> = ({
 
           if (rightsError) {
             console.error('Error inserting user rights:', rightsError);
-            toast.error('User updated but failed to assign rights');
-            return;
+            if (rightsError.code === '23503') {
+              toast.error('User updated but some rights are invalid');
+            } else if (rightsError.code === '23505') {
+              toast.error('User updated but some rights already exist');
+            } else {
+              toast.error('User updated but failed to assign rights');
+            }
+            // Don't return here, user was still updated successfully
           }
         }
 
         toast.success('User updated successfully');
       } else {
+        // Validate required fields
+        if (!data.password) {
+          toast.error('Password is required for new users');
+          return;
+        }
+
         // Create user using service role
         const { data: userData, error: userError } = await supabaseAdmin
           .from('users')
           .insert({
+            id: crypto.randomUUID(), // Generate UUID for new user
             name: data.name,
             email: data.email,
             password_hash: data.password!,
             role_id: data.role_id,
-            is_active: data.is_active
+            is_active: data.is_active,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           })
           .select()
           .single();
@@ -180,9 +202,18 @@ export const UserForm: React.FC<UserFormProps> = ({
             toast.error('A user with this email already exists');
           } else if (userError.code === '23503') {
             toast.error('Invalid role selected');
+          } else if (userError.code === 'PGRST301') {
+            toast.error('Access denied: insufficient permissions to create user');
+          } else if (userError.code === '42501') {
+            toast.error('Database permission error. Please contact administrator.');
           } else {
-            toast.error('Failed to create user');
+            toast.error(`Failed to create user: ${userError.message}`);
           }
+          return;
+        }
+
+        if (!userData) {
+          toast.error('User creation failed: No data returned');
           return;
         }
 
@@ -199,8 +230,14 @@ export const UserForm: React.FC<UserFormProps> = ({
 
           if (rightsError) {
             console.error('Error inserting user rights:', rightsError);
-            toast.error('User created but failed to assign rights');
-            return;
+            if (rightsError.code === '23503') {
+              toast.error('User created but some rights are invalid');
+            } else if (rightsError.code === '23505') {
+              toast.error('User created but some rights already exist');
+            } else {
+              toast.error('User created but failed to assign rights');
+            }
+            // Don't return here, user was still created successfully
           }
         }
 
@@ -210,7 +247,7 @@ export const UserForm: React.FC<UserFormProps> = ({
       onSuccess();
     } catch (error) {
       console.error('Error saving user:', error);
-      toast.error(`Failed to ${isEdit ? 'update' : 'create'} user`);
+      toast.error(`Network error: Failed to ${isEdit ? 'update' : 'create'} user`);
     }
   };
 

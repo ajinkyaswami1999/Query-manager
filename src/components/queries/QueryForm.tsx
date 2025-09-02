@@ -60,6 +60,12 @@ export const QueryForm: React.FC<QueryFormProps> = ({
         return;
       }
 
+      // Validate user is logged in
+      if (!user?.user.id) {
+        toast.error('User not authenticated. Please log in again.');
+        return;
+      }
+
       const queryData = {
         ...data,
         engine_id: data.engine_id || null,
@@ -68,6 +74,11 @@ export const QueryForm: React.FC<QueryFormProps> = ({
       };
 
       if (isEdit) {
+        if (!query?.id) {
+          toast.error('Query ID not found. Cannot update.');
+          return;
+        }
+
         // Use service role to bypass RLS for updates
         const { error } = await supabaseAdmin
           .from('queries')
@@ -81,34 +92,63 @@ export const QueryForm: React.FC<QueryFormProps> = ({
         if (error) {
           console.error('Error updating query:', error);
           if (error.code === 'PGRST301') {
-            toast.error('You do not have permission to update this query');
+            toast.error('Access denied: insufficient permissions to update this query');
+          } else if (error.code === 'PGRST116') {
+            toast.error('Query not found');
           } else if (error.code === '23505') {
             toast.error('A query with this name already exists');
+          } else if (error.code === '23503') {
+            toast.error('Invalid reference data selected (engine, category, or tag)');
           } else {
-            toast.error('Failed to update query. Please try again.');
+            toast.error(`Failed to update query: ${error.message}`);
           }
           return;
         }
         
         toast.success('Query updated successfully');
       } else {
+        // Validate required fields for creation
+        if (!queryData.query_name.trim()) {
+          toast.error('Query name is required');
+          return;
+        }
+        if (!queryData.query_text.trim()) {
+          toast.error('Query text is required');
+          return;
+        }
+
         // Use service role to bypass RLS for inserts
-        const { error } = await supabaseAdmin
+        const { data: insertData, error } = await supabaseAdmin
           .from('queries')
           .insert({
             ...queryData,
-            created_by: user?.user.id!
-          });
+            created_by: user.user.id,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
 
         if (error) {
           console.error('Error creating query:', error);
           if (error.code === '23505') {
             toast.error('A query with this name already exists');
           } else if (error.code === '23503') {
-            toast.error('Invalid reference data selected');
+            toast.error('Invalid reference data selected (engine, category, or tag)');
+          } else if (error.code === 'PGRST301') {
+            toast.error('Access denied: insufficient permissions to create query');
+          } else if (error.code === '42501') {
+            toast.error('Database permission error. Please contact administrator.');
+          } else if (error.message.includes('relation') && error.message.includes('does not exist')) {
+            toast.error('Database schema incomplete. Please run migrations.');
           } else {
-            toast.error('Failed to create query. Please try again.');
+            toast.error(`Failed to create query: ${error.message}`);
           }
+          return;
+        }
+
+        if (!insertData) {
+          toast.error('Query creation failed: No data returned');
           return;
         }
         
@@ -118,7 +158,7 @@ export const QueryForm: React.FC<QueryFormProps> = ({
       onSuccess();
     } catch (error) {
       console.error('Error saving query:', error);
-      toast.error(`Failed to ${isEdit ? 'update' : 'create'} query. Please try again.`);
+      toast.error(`Network error: Failed to ${isEdit ? 'update' : 'create'} query`);
     }
   };
 

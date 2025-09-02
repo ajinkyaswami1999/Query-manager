@@ -74,8 +74,12 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
           console.error('Error updating item:', error);
           if (error.code === '23505') {
             toast.error('This name already exists. Please choose a different name.');
+          } else if (error.code === 'PGRST301') {
+            toast.error('Access denied: insufficient permissions to update this item');
+          } else if (error.code === 'PGRST116') {
+            toast.error('Item not found');
           } else {
-            toast.error(`Failed to update ${config.title.slice(0, -1).toLowerCase()}`);
+            toast.error(`Failed to update ${config.title.slice(0, -1).toLowerCase()}: ${error.message}`);
           }
           return;
         }
@@ -91,8 +95,10 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
           console.error('Error creating item:', error);
           if (error.code === '23505') {
             toast.error('This name already exists. Please choose a different name.');
+          } else if (error.code === 'PGRST301') {
+            toast.error('Access denied: insufficient permissions to create this item');
           } else {
-            toast.error(`Failed to create ${config.title.slice(0, -1).toLowerCase()}`);
+            toast.error(`Failed to create ${config.title.slice(0, -1).toLowerCase()}: ${error.message}`);
           }
           return;
         }
@@ -103,7 +109,7 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
       onSuccess();
     } catch (error: any) {
       console.error('Error saving item:', error);
-      toast.error(`Failed to ${isEdit ? 'update' : 'create'} ${config.title.slice(0, -1).toLowerCase()}`);
+      toast.error(`Network error: Failed to ${isEdit ? 'update' : 'create'} ${config.title.slice(0, -1).toLowerCase()}`);
     }
   };
 
