@@ -39,7 +39,7 @@ export const QueryForm: React.FC<QueryFormProps> = ({
   const { user, hasRight, isSupabaseConnected } = useAuth();
   const isEdit = !!query;
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<QueryFormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<QueryFormData>({
     resolver: zodResolver(querySchema),
     defaultValues: {
       query_name: query?.query_name || '',
@@ -56,6 +56,7 @@ export const QueryForm: React.FC<QueryFormProps> = ({
     try {
       if (!isSupabaseConnected) {
         toast.success(`Query ${isEdit ? 'updated' : 'created'} successfully (Demo Mode)`);
+        reset(); // Reset form after successful submission
         onSuccess();
         return;
       }
@@ -66,11 +67,24 @@ export const QueryForm: React.FC<QueryFormProps> = ({
         return;
       }
 
+      // Validate required fields
+      if (!data.query_name.trim()) {
+        toast.error('Query name is required');
+        return;
+      }
+      if (!data.query_text.trim()) {
+        toast.error('Query text is required');
+        return;
+      }
+
       const queryData = {
-        ...data,
+        query_name: data.query_name.trim(),
+        query_text: data.query_text.trim(),
+        description: data.description?.trim() || '',
         engine_id: data.engine_id || null,
         category_id: data.category_id || null,
         tag_id: data.tag_id || null,
+        is_shared: data.is_shared || false,
       };
 
       if (isEdit) {
@@ -84,7 +98,7 @@ export const QueryForm: React.FC<QueryFormProps> = ({
           .from('queries')
           .update({
             ...queryData,
-            updated_by: user?.user.id,
+            updated_by: user.user.id,
             updated_at: new Date().toISOString()
           })
           .eq('id', query.id);
@@ -107,16 +121,6 @@ export const QueryForm: React.FC<QueryFormProps> = ({
         
         toast.success('Query updated successfully');
       } else {
-        // Validate required fields for creation
-        if (!queryData.query_name.trim()) {
-          toast.error('Query name is required');
-          return;
-        }
-        if (!queryData.query_text.trim()) {
-          toast.error('Query text is required');
-          return;
-        }
-
         // Use service role to bypass RLS for inserts
         const { data: insertData, error } = await supabaseAdmin
           .from('queries')
@@ -155,6 +159,7 @@ export const QueryForm: React.FC<QueryFormProps> = ({
         toast.success('Query created successfully');
       }
       
+      reset(); // Reset form after successful submission
       onSuccess();
     } catch (error) {
       console.error('Error saving query:', error);
@@ -165,7 +170,7 @@ export const QueryForm: React.FC<QueryFormProps> = ({
   const canShareQuery = hasRight('SHARE_QUERY');
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <Input
         label="Query Name"
         placeholder="Enter query name"
@@ -174,12 +179,12 @@ export const QueryForm: React.FC<QueryFormProps> = ({
       />
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Query Text
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          SQL Query
         </label>
         <textarea
-          rows={8}
-          className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+          rows={12}
+          className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-y"
           placeholder="SELECT * FROM users WHERE..."
           {...register('query_text')}
         />
@@ -189,12 +194,12 @@ export const QueryForm: React.FC<QueryFormProps> = ({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           Description
         </label>
         <textarea
           rows={3}
-          className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
           placeholder="Describe what this query does..."
           {...register('description')}
         />
@@ -202,7 +207,7 @@ export const QueryForm: React.FC<QueryFormProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Database Engine
           </label>
           <select
@@ -219,7 +224,7 @@ export const QueryForm: React.FC<QueryFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Category
           </label>
           <select
@@ -236,7 +241,7 @@ export const QueryForm: React.FC<QueryFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Tag
           </label>
           <select
@@ -254,7 +259,7 @@ export const QueryForm: React.FC<QueryFormProps> = ({
       </div>
 
       {canShareQuery && (
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
           <input
             type="checkbox"
             id="is_shared"
@@ -267,7 +272,17 @@ export const QueryForm: React.FC<QueryFormProps> = ({
         </div>
       )}
 
-      <div className="flex justify-end space-x-3 pt-4">
+      <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            reset();
+            onSuccess();
+          }}
+        >
+          Cancel
+        </Button>
         <Button
           type="submit"
           loading={isSubmitting}
