@@ -3,6 +3,7 @@ import {
   Plus, 
   Search, 
   Filter, 
+  FilterX,
   Copy, 
   Edit, 
   Share, 
@@ -13,7 +14,9 @@ import {
   Folder,
   FileText,
   Calendar,
-  User
+  User,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -144,6 +147,7 @@ export const QueryList: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedQuery, setSelectedQuery] = useState<Query | null>(null);
+  const [showFilters, setShowFilters] = useState(true);
   
   const [engines, setEngines] = useState<DatabaseEngine[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -391,95 +395,117 @@ export const QueryList: React.FC = () => {
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
       {/* Left Sidebar - Filters */}
-      <div className="w-64 bg-white border-r border-gray-200 p-6 space-y-6">
-        <div className="flex items-center space-x-2 text-gray-700">
-          <Filter className="h-5 w-5" />
-          <h2 className="font-semibold">Filters</h2>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Database Engine
-            </label>
-            <select
-              value={selectedEngine}
-              onChange={(e) => setSelectedEngine(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      <div className={`${showFilters ? 'w-80' : 'w-0'} transition-all duration-300 overflow-hidden bg-white shadow-xl border-r border-gray-200`}>
+        <div className="p-6 space-y-6 w-80">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-gray-700">
+              <Filter className="h-5 w-5 text-blue-600" />
+              <h2 className="font-bold text-lg">Smart Filters</h2>
+            </div>
+            <button
+              onClick={() => setShowFilters(false)}
+              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <option value="">All Engines</option>
-              {engines.map(engine => (
-                <option key={engine.id} value={engine.id}>{engine.engine_name}</option>
-              ))}
-            </select>
+              <ChevronLeft className="h-4 w-4 text-gray-500" />
+            </button>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Category
-            </label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Categories</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>{category.category_name}</option>
-              ))}
-            </select>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Database Engine
+              </label>
+              <select
+                value={selectedEngine}
+                onChange={(e) => setSelectedEngine(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm hover:shadow-md transition-all duration-200"
+              >
+                <option value="">All Engines</option>
+                {engines.map(engine => (
+                  <option key={engine.id} value={engine.id}>{engine.engine_name}</option>
+                ))}
+              </select>
+            </div>
+        </div>
+
+
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category
+              </label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm hover:shadow-md transition-all duration-200"
+              >
+                <option value="">All Categories</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>{category.category_name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Tag className="inline h-4 w-4 mr-1" />
+                Tags
+              </label>
+              <div className="space-y-2">
+                {tags.map(tag => (
+                  <div key={tag.id} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`tag_${tag.id}`}
+                      checked={selectedTag === tag.id}
+                      onChange={(e) => setSelectedTag(e.target.checked ? tag.id : '')}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded-md"
+                    />
+                    <label
+                      htmlFor={`tag_${tag.id}`}
+                      className="text-sm text-gray-700 cursor-pointer"
+                    >
+                      {tag.tag_name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Tag className="inline h-4 w-4 mr-1" />
-              Tags
-            </label>
-            <div className="space-y-2">
-              {tags.map(tag => (
-                <div key={tag.id} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id={`tag_${tag.id}`}
-                    checked={selectedTag === tag.id}
-                    onChange={(e) => setSelectedTag(e.target.checked ? tag.id : '')}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label
-                    htmlFor={`tag_${tag.id}`}
-                    className="text-sm text-gray-700 cursor-pointer"
-                  >
-                    {tag.tag_name}
-                  </label>
-                </div>
-              ))}
+          <div className="pt-6 border-t border-gray-200">
+            <div className="text-sm text-gray-600 space-y-1">
+              <div className="flex items-center space-x-2">
+                <FileText className="h-4 w-4" />
+                <span>Total Queries: {queries.length}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Folder className="h-4 w-4" />
+                <span>Categories: {categories.length}</span>
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="pt-4 border-t border-gray-200">
-          <div className="text-sm text-gray-600 space-y-1">
-            <div className="flex items-center space-x-2">
-              <FileText className="h-4 w-4" />
-              <span>Total Queries: {queries.length}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Folder className="h-4 w-4" />
-              <span>Categories: {categories.length}</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="flex-1 p-8 overflow-y-auto">
+        {/* Filter Toggle Button */}
+        {!showFilters && (
+          <button
+            onClick={() => setShowFilters(true)}
+            className="fixed left-4 top-24 z-30 bg-white shadow-lg rounded-xl p-3 hover:shadow-xl transition-all duration-200 border border-gray-200"
+          >
+            <ChevronRight className="h-5 w-5 text-gray-600" />
+          </button>
+        )}
+
         {/* Connection Status Banner */}
         {!isSupabaseConnected && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 mb-6 shadow-sm">
             <div className="flex items-center space-x-2">
-              <div className="h-2 w-2 bg-amber-500 rounded-full"></div>
+              <div className="h-2 w-2 bg-amber-500 rounded-full animate-pulse"></div>
               <p className="text-sm text-amber-800">
                 <strong>Demo Mode:</strong> Supabase not connected. Using sample data for demonstration.
               </p>
@@ -490,21 +516,33 @@ export const QueryList: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">SQL Queries ({filteredQueries.length})</h1>
-            <p className="text-gray-600">Manage and organize your SQL query collection</p>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              SQL Queries ({filteredQueries.length})
+            </h1>
+            <p className="text-gray-600 mt-1">Manage and organize your SQL query collection</p>
           </div>
-          {canCreateQuery && (
+          <div className="flex items-center space-x-3">
             <Button
-              icon={Plus}
-              onClick={() => setShowCreateModal(true)}
+              variant="ghost"
+              icon={showFilters ? FilterX : Filter}
+              onClick={() => setShowFilters(!showFilters)}
+              className="text-gray-600"
             >
-              New Query
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
             </Button>
-          )}
+            {canCreateQuery && (
+              <Button
+                icon={Plus}
+                onClick={() => setShowCreateModal(true)}
+              >
+                New Query
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Search */}
-        <div className="mb-6">
+        <div className="mb-8">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
@@ -512,15 +550,15 @@ export const QueryList: React.FC = () => {
               placeholder="Search queries..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm hover:shadow-md transition-all duration-200"
             />
           </div>
         </div>
 
         {/* Query Cards */}
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredQueries.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="col-span-full text-center py-12">
               <FileText className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No queries found</h3>
               <p className="mt-1 text-sm text-gray-500">
@@ -529,50 +567,41 @@ export const QueryList: React.FC = () => {
             </div>
           ) : (
             filteredQueries.map((query) => (
-              <div key={query.id} className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200">
+              <div key={query.id} className="bg-white rounded-2xl border border-gray-200 hover:shadow-xl hover:border-blue-200 transition-all duration-300 transform hover:-translate-y-1 group">
                 <div className="p-6">
                   {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{query.query_name}</h3>
-                      <p className="text-gray-600 text-sm mb-3">{query.description || 'No description'}</p>
+                      <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-700 transition-colors">
+                        {query.query_name}
+                      </h3>
+                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                        {query.description || 'No description'}
+                      </p>
                       
                       {/* Metadata */}
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mb-3">
                         <div className="flex items-center space-x-1">
                           <Calendar className="w-3 h-3" />
                           <span>{formatDate(query.created_at)}</span>
                         </div>
-                        {query.engine && (
-                          <div className="flex items-center space-x-1">
-                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full font-medium">
-                              {query.engine.engine_name}
-                            </span>
-                          </div>
-                        )}
                         {query.creator && (
                           <div className="flex items-center space-x-1">
                             <User className="w-3 h-3" />
-                            <span>Created by {query.creator.name}</span>
+                            <span>{query.creator.name}</span>
                           </div>
-                        )}
-                        {query.is_shared && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            <Share className="w-3 h-3 mr-1" />
-                            Shared
-                          </span>
                         )}
                       </div>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex items-center space-x-2 ml-4">
+                    <div className="flex items-center space-x-1 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button
                         size="sm"
                         variant="ghost"
                         icon={Copy}
                         onClick={() => handleCopyQuery(query.query_text)}
-                        className="text-gray-600 hover:text-gray-800"
+                        className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 p-2"
                       />
                       
                       <Button
@@ -583,7 +612,7 @@ export const QueryList: React.FC = () => {
                           setSelectedQuery(query);
                           setShowEditModal(true);
                         }}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 p-2"
                       />
 
                       <Button
@@ -591,15 +620,15 @@ export const QueryList: React.FC = () => {
                         variant="ghost"
                         icon={Trash2}
                         onClick={() => handleDeleteQuery(query.id)}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-gray-500 hover:text-red-600 hover:bg-red-50 p-2"
                       />
                     </div>
                   </div>
 
                   {/* Query Preview */}
-                  <div className="bg-gray-50 rounded-lg p-4 border">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">SQL Query</span>
+                  <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-4 border border-gray-200 shadow-inner mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">SQL Preview</span>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -607,34 +636,48 @@ export const QueryList: React.FC = () => {
                           setSelectedQuery(query);
                           setShowViewModal(true);
                         }}
-                        className="text-blue-600 hover:text-blue-800 text-xs"
+                        className="text-blue-600 hover:text-blue-800 text-xs hover:bg-white px-3 py-1 rounded-lg"
                       >
-                        View Full Query →
+                        View Full →
                       </Button>
                     </div>
                     <div className="relative">
-                      <pre className="text-sm text-gray-800 font-mono whitespace-pre-wrap overflow-hidden" style={{ maxHeight: '120px' }}>
+                      <pre className="text-xs text-gray-800 font-mono whitespace-pre-wrap overflow-hidden line-clamp-4">
                         {query.query_text}
                       </pre>
-                      {query.query_text.length > 200 && (
-                        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-50 to-transparent"></div>
+                      {query.query_text.length > 150 && (
+                        <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-slate-50 to-transparent"></div>
                       )}
                     </div>
                   </div>
 
                   {/* Tags */}
-                  <div className="flex items-center space-x-2 mt-4">
-                    {query.category && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                        <Folder className="w-3 h-3 mr-1" />
-                        {query.category.category_name}
-                      </span>
-                    )}
-                    {query.tag && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                        <Tag className="w-3 h-3 mr-1" />
-                        {query.tag.tag_name}
-                      </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {query.engine && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-semibold bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 shadow-sm">
+                          <Database className="w-3 h-3 mr-1" />
+                          {query.engine.engine_name}
+                        </span>
+                      )}
+                      {query.category && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-semibold bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 shadow-sm">
+                          <Folder className="w-3 h-3 mr-1" />
+                          {query.category.category_name}
+                        </span>
+                      )}
+                      {query.tag && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800 shadow-sm">
+                          <Tag className="w-3 h-3 mr-1" />
+                          {query.tag.tag_name}
+                        </span>
+                      )}
+                    </div>
+                    {query.category && query.is_shared && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-800">
+                          <Share className="w-3 h-3 mr-1" />
+                          Shared
+                        </span>
                     )}
                   </div>
                 </div>

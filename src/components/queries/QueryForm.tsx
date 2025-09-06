@@ -55,28 +55,32 @@ export const QueryForm: React.FC<QueryFormProps> = ({
   const onSubmit = async (data: QueryFormData) => {
     try {
       if (!isSupabaseConnected) {
+        // Simulate successful creation in demo mode
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
         toast.success(`Query ${isEdit ? 'updated' : 'created'} successfully (Demo Mode)`);
         reset(); // Reset form after successful submission
         onSuccess();
         return;
       }
 
-      // Validate user is logged in
-      if (!user?.user.id) {
-        toast.error('User not authenticated. Please log in again.');
+      // Enhanced validation
+      if (!user?.user?.id) {
+        toast.error('Authentication required. Please log in again.');
         return;
       }
 
-      // Validate required fields
+      // Client-side validation
       if (!data.query_name.trim()) {
         toast.error('Query name is required');
         return;
       }
+      
       if (!data.query_text.trim()) {
         toast.error('Query text is required');
         return;
       }
 
+      // Prepare data for submission
       const queryData = {
         query_name: data.query_name.trim(),
         query_text: data.query_text.trim(),
@@ -88,12 +92,13 @@ export const QueryForm: React.FC<QueryFormProps> = ({
       };
 
       if (isEdit) {
+        // Validate query exists for editing
         if (!query?.id) {
-          toast.error('Query ID not found. Cannot update.');
+          toast.error('Query ID missing. Cannot update query.');
           return;
         }
 
-        // Use service role to bypass RLS for updates
+        // Update query using service role to bypass RLS
         const { error } = await supabaseAdmin
           .from('queries')
           .update({
@@ -104,28 +109,31 @@ export const QueryForm: React.FC<QueryFormProps> = ({
           .eq('id', query.id);
 
         if (error) {
-          console.error('Error updating query:', error);
+          console.error('Query update error:', error);
           if (error.code === 'PGRST301') {
-            toast.error('Access denied: insufficient permissions to update this query');
+            toast.error('Access denied: You don\'t have permission to update this query');
           } else if (error.code === 'PGRST116') {
-            toast.error('Query not found');
+            toast.error('Query not found. It may have been deleted.');
           } else if (error.code === '23505') {
-            toast.error('A query with this name already exists');
+            toast.error('Query name already exists. Please choose a different name.');
           } else if (error.code === '23503') {
-            toast.error('Invalid reference data selected (engine, category, or tag)');
+            toast.error('Invalid selection: Please check your database engine, category, or tag selection');
+          } else if (error.code === '42501') {
+            toast.error('Database permission error. Please contact your administrator.');
           } else {
-            toast.error(`Failed to update query: ${error.message}`);
+            toast.error(`Update failed: ${error.message || 'Unknown database error'}`);
           }
           return;
         }
         
         toast.success('Query updated successfully');
       } else {
-        // Use service role to bypass RLS for inserts
+        // Create new query using service role to bypass RLS
         const { data: insertData, error } = await supabaseAdmin
           .from('queries')
           .insert({
             ...queryData,
+            id: crypto.randomUUID(), // Generate UUID for new query
             created_by: user.user.id,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -134,25 +142,27 @@ export const QueryForm: React.FC<QueryFormProps> = ({
           .single();
 
         if (error) {
-          console.error('Error creating query:', error);
+          console.error('Query creation error:', error);
           if (error.code === '23505') {
-            toast.error('A query with this name already exists');
+            toast.error('Query name already exists. Please choose a unique name.');
           } else if (error.code === '23503') {
-            toast.error('Invalid reference data selected (engine, category, or tag)');
+            toast.error('Invalid selection: Please verify your database engine, category, or tag selection');
           } else if (error.code === 'PGRST301') {
-            toast.error('Access denied: insufficient permissions to create query');
+            toast.error('Access denied: You don\'t have permission to create queries');
           } else if (error.code === '42501') {
-            toast.error('Database permission error. Please contact administrator.');
+            toast.error('Database permission error. Please contact your administrator.');
           } else if (error.message.includes('relation') && error.message.includes('does not exist')) {
-            toast.error('Database schema incomplete. Please run migrations.');
+            toast.error('Database not properly configured. Please contact your administrator.');
+          } else if (error.message.includes('foreign key')) {
+            toast.error('Data relationship error. Please check your selections and try again.');
           } else {
-            toast.error(`Failed to create query: ${error.message}`);
+            toast.error(`Creation failed: ${error.message || 'Unknown database error'}`);
           }
           return;
         }
 
         if (!insertData) {
-          toast.error('Query creation failed: No data returned');
+          toast.error('Query creation failed: No data returned from database');
           return;
         }
         
@@ -162,8 +172,8 @@ export const QueryForm: React.FC<QueryFormProps> = ({
       reset(); // Reset form after successful submission
       onSuccess();
     } catch (error) {
-      console.error('Error saving query:', error);
-      toast.error(`Network error: Failed to ${isEdit ? 'update' : 'create'} query`);
+      console.error('Network error saving query:', error);
+      toast.error(`Network error: Unable to ${isEdit ? 'update' : 'create'} query. Please check your connection.`);
     }
   };
 

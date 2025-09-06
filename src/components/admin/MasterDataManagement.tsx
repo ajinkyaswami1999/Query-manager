@@ -217,8 +217,8 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
 
   const filteredData = data.filter(item => {
     const nameValue = (item as any)[config.nameField];
-    return nameValue.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           item.description.toLowerCase().includes(searchTerm.toLowerCase());
+    return (nameValue?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+           (item.description ?? '').toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   if (loading) {
@@ -233,9 +233,9 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
     <div className="space-y-6">
       {/* Connection Status Banner */}
       {!isSupabaseConnected && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 shadow-sm">
           <div className="flex items-center space-x-2">
-            <div className="h-2 w-2 bg-amber-500 rounded-full"></div>
+            <div className="h-2 w-2 bg-amber-500 rounded-full animate-pulse"></div>
             <p className="text-sm text-amber-800">
               <strong>Demo Mode:</strong> Master data management features are limited without Supabase connection.
             </p>
@@ -246,7 +246,7 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{config.title}</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{config.title}</h1>
           <p className="text-gray-600">{config.description}</p>
         </div>
         {isSupabaseConnected && (
@@ -260,7 +260,7 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
       </div>
 
       {/* Search */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
         <div className="max-w-md">
           <Input
             placeholder={`Search ${config.title.toLowerCase()}...`}
@@ -271,30 +271,30 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
       </div>
 
       {/* Data Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-gradient-to-r from-gray-50 to-slate-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Description
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Created
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredData.map((item) => (
-              <tr key={item.id} className="hover:bg-gray-50">
+              <tr key={item.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
                     {(item as any)[config.nameField]}
@@ -308,8 +308,8 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     item.is_active 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
+                      ? 'bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800 shadow-sm' 
+                      : 'bg-gradient-to-r from-red-100 to-red-200 text-red-800 shadow-sm'
                   }`}>
                     {item.is_active ? 'Active' : 'Inactive'}
                   </span>
@@ -365,7 +365,7 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title={`Add New ${config.title.slice(0, -1)}`}
+        title={`Create New ${config.title.slice(0, -1)}`}
         size="md"
       >
         <MasterDataForm

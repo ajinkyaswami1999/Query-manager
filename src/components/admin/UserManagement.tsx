@@ -289,9 +289,9 @@ export const UserManagement: React.FC = () => {
     <div className="space-y-6">
       {/* Connection Status Banner */}
       {!isSupabaseConnected && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 shadow-sm">
           <div className="flex items-center space-x-2">
-            <div className="h-2 w-2 bg-amber-500 rounded-full"></div>
+            <div className="h-2 w-2 bg-amber-500 rounded-full animate-pulse"></div>
             <p className="text-sm text-amber-800">
               <strong>Demo Mode:</strong> User management features are limited without Supabase connection.
             </p>
@@ -302,7 +302,7 @@ export const UserManagement: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">User Management</h1>
           <p className="text-gray-600">Manage system users and their permissions</p>
         </div>
         {isSupabaseConnected && (
@@ -316,7 +316,7 @@ export const UserManagement: React.FC = () => {
       </div>
 
       {/* Search */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
         <div className="max-w-md">
           <Input
             placeholder="Search users..."
@@ -327,30 +327,30 @@ export const UserManagement: React.FC = () => {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-gradient-to-r from-gray-50 to-slate-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 User
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Role
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Created
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredUsers.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50">
+              <tr key={user.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div>
                     <div className="text-sm font-medium text-gray-900">
@@ -364,8 +364,8 @@ export const UserManagement: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     user.role?.role_name === 'Admin' 
-                      ? 'bg-purple-100 text-purple-800' 
-                      : 'bg-blue-100 text-blue-800'
+                      ? 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 shadow-sm' 
+                      : 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 shadow-sm'
                   }`}>
                     {user.role?.role_name || 'No Role'}
                   </span>
@@ -373,8 +373,8 @@ export const UserManagement: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     user.is_active 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
+                      ? 'bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800 shadow-sm' 
+                      : 'bg-gradient-to-r from-red-100 to-red-200 text-red-800 shadow-sm'
                   }`}>
                     {user.is_active ? 'Active' : 'Inactive'}
                   </span>
@@ -429,7 +429,7 @@ export const UserManagement: React.FC = () => {
 
         {filteredUsers.length === 0 && (
           <div className="text-center py-12">
-            <Shield className="mx-auto h-12 w-12 text-gray-400" />
+            <Shield className="mx-auto h-16 w-16 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
             <p className="mt-1 text-sm text-gray-500">
               {isSupabaseConnected ? 'Get started by adding your first user.' : 'Connect to Supabase to manage users.'}
@@ -442,7 +442,7 @@ export const UserManagement: React.FC = () => {
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="Add New User"
+        title="Create New User"
         size="lg"
       >
         <UserForm

@@ -14,35 +14,35 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputType = showPasswordToggle ? (showPassword ? 'text' : 'password') : type;
 
     return (
-      <div className="space-y-1">
+      <div className="space-y-2">
         {label && (
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-semibold text-gray-200">
             {label}
           </label>
         )}
-        <div className="relative">
+        <div className="relative group">
           <input
             ref={ref}
             type={inputType}
-            className={`block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${error ? 'border-red-500' : ''} ${className}`}
+            className={`block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 group-hover:shadow-md ${error ? 'border-red-400 focus:ring-red-500' : ''} ${className}`}
             {...props}
           />
           {showPasswordToggle && (
             <button
               type="button"
-              className="absolute inset-y-0 right-0 flex items-center pr-3"
+              className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-600 transition-colors duration-200"
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? (
-                <EyeOff className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                <EyeOff className="h-5 w-5" />
               ) : (
-                <Eye className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                <Eye className="h-5 w-5" />
               )}
             </button>
           )}
         </div>
         {error && (
-          <p className="text-sm text-red-600">{error}</p>
+          <p className="text-sm text-red-400 font-medium">{error}</p>
         )}
       </div>
     );

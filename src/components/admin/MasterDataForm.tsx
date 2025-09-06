@@ -116,7 +116,7 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
   return (
     <div className="space-y-4">
       {!isSupabaseConnected && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 shadow-sm">
           <p className="text-sm text-amber-800">
             Master data management is not available in demo mode. Connect to Supabase to enable this feature.
           </p>
@@ -138,7 +138,7 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
           </label>
           <textarea
             rows={3}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:shadow-md resize-y"
             placeholder={`Describe this ${config.title.slice(0, -1).toLowerCase()}...`}
             disabled={!isSupabaseConnected}
             {...register('description')}
@@ -149,7 +149,7 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
           <input
             type="checkbox"
             id="is_active"
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded-md"
             disabled={!isSupabaseConnected}
             {...register('is_active')}
           />

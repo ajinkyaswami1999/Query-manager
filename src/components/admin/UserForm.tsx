@@ -256,7 +256,7 @@ export const UserForm: React.FC<UserFormProps> = ({
   return (
     <div className="space-y-4">
       {!isSupabaseConnected && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 shadow-sm">
           <p className="text-sm text-amber-800">
             User management is not available in demo mode. Connect to Supabase to enable this feature.
           </p>
@@ -306,7 +306,7 @@ export const UserForm: React.FC<UserFormProps> = ({
             Role
           </label>
           <select
-            className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:shadow-md"
             disabled={!isSupabaseConnected}
             {...register('role_id')}
           >
@@ -326,20 +326,20 @@ export const UserForm: React.FC<UserFormProps> = ({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             User Rights
           </label>
-          <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+          <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-gray-50 to-slate-50">
             {userRights.map(right => (
-              <div key={right.id} className="flex items-center space-x-2">
+              <div key={right.id} className="flex items-center space-x-3 p-2 hover:bg-white rounded-lg transition-colors duration-200">
                 <input
                   type="checkbox"
                   id={`right_${right.id}`}
                   checked={selectedRights.includes(right.id)}
                   onChange={(e) => handleRightChange(right.id, e.target.checked)}
                   disabled={!isSupabaseConnected}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded-md"
                 />
                 <label
                   htmlFor={`right_${right.id}`}
-                  className="text-sm text-gray-700 cursor-pointer"
+                  className="text-sm text-gray-700 cursor-pointer font-medium"
                 >
                   {right.right_name}
                 </label>
@@ -352,7 +352,7 @@ export const UserForm: React.FC<UserFormProps> = ({
           <input
             type="checkbox"
             id="is_active"
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded-md"
             disabled={!isSupabaseConnected}
             {...register('is_active')}
           />
