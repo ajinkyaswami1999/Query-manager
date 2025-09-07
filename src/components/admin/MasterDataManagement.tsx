@@ -244,23 +244,25 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-0 space-y-3 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{config.title}</h1>
-          <p className="text-gray-600">{config.description}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{config.title}</h1>
+          <p className="text-gray-600 text-sm sm:text-base">{config.description}</p>
         </div>
         {isSupabaseConnected && (
           <Button
             icon={Plus}
             onClick={() => setShowCreateModal(true)}
+            size="sm"
           >
-            Add {config.title.slice(0, -1)}
+            <span className="hidden sm:inline">Add {config.title.slice(0, -1)}</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         )}
       </div>
 
       {/* Search */}
-      <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+      <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-lg border border-gray-200">
         <div className="max-w-md">
           <Input
             placeholder={`Search ${config.title.toLowerCase()}...`}
@@ -271,23 +273,24 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
       </div>
 
       {/* Data Table */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gradient-to-r from-gray-50 to-slate-50">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Name
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
                 Description
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
                 Created
               </th>
-              <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -295,17 +298,20 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredData.map((item) => (
               <tr key={item.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200">
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
                     {(item as any)[config.nameField]}
                   </div>
+                  <div className="sm:hidden text-xs text-gray-500 mt-1">
+                    {item.description || 'No description'}
+                  </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
                   <div className="text-sm text-gray-500">
                     {item.description || 'No description'}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     item.is_active 
                       ? 'bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800 shadow-sm' 
@@ -314,11 +320,11 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
                     {item.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 hidden lg:table-cell">
                   {formatDate(item.created_at)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex items-center justify-end space-x-2">
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <div className="flex items-center justify-end space-x-1 sm:space-x-2">
                     {isSupabaseConnected && (
                       <>
                         <Button
@@ -329,8 +335,21 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
                             setSelectedItem(item);
                             setShowEditModal(true);
                           }}
+                          className="hidden sm:flex"
                         >
                           Edit
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedItem(item);
+                            setShowEditModal(true);
+                          }}
+                          className="sm:hidden p-1"
+                        >
+                          <Edit className="h-4 w-4" />
                         </Button>
 
                         <Button
@@ -338,9 +357,18 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
                           variant="ghost"
                           icon={Trash2}
                           onClick={() => handleDelete(item.id)}
-                          className="text-red-600 hover:text-red-800"
+                          className="text-red-600 hover:text-red-800 hidden sm:flex"
                         >
                           Delete
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDelete(item.id)}
+                          className="text-red-600 hover:text-red-800 sm:hidden p-1"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </>
                     )}
@@ -350,6 +378,7 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
             ))}
           </tbody>
         </table>
+        </div>
 
         {filteredData.length === 0 && (
           <div className="text-center py-12">

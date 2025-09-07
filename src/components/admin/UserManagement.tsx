@@ -300,23 +300,25 @@ export const UserManagement: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-0 space-y-3 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">User Management</h1>
-          <p className="text-gray-600">Manage system users and their permissions</p>
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">User Management</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Manage system users and their permissions</p>
         </div>
         {isSupabaseConnected && (
           <Button
             icon={Plus}
             onClick={() => setShowCreateModal(true)}
+            size="sm"
           >
-            Add User
+            <span className="hidden sm:inline">Add User</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         )}
       </div>
 
       {/* Search */}
-      <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+      <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-lg border border-gray-200">
         <div className="max-w-md">
           <Input
             placeholder="Search users..."
@@ -327,23 +329,24 @@ export const UserManagement: React.FC = () => {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gradient-to-r from-gray-50 to-slate-50">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 User
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
                 Role
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
                 Created
               </th>
-              <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 sm:px-6 py-3 sm:py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -351,17 +354,26 @@ export const UserManagement: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredUsers.map((user) => (
               <tr key={user.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200">
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                   <div>
                     <div className="text-sm font-medium text-gray-900">
                       {user.name}
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-xs sm:text-sm text-gray-500">
                       {user.email}
+                    </div>
+                    <div className="sm:hidden mt-1">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        user.role?.role_name === 'Admin' 
+                          ? 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 shadow-sm' 
+                          : 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 shadow-sm'
+                      }`}>
+                        {user.role?.role_name || 'No Role'}
+                      </span>
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     user.role?.role_name === 'Admin' 
                       ? 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 shadow-sm' 
@@ -370,7 +382,7 @@ export const UserManagement: React.FC = () => {
                     {user.role?.role_name || 'No Role'}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     user.is_active 
                       ? 'bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800 shadow-sm' 
@@ -379,11 +391,11 @@ export const UserManagement: React.FC = () => {
                     {user.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 hidden lg:table-cell">
                   {formatDate(user.created_at)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex items-center justify-end space-x-2">
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <div className="flex items-center justify-end space-x-1 sm:space-x-2">
                     {isSupabaseConnected && (
                       <>
                         <Button
@@ -391,8 +403,18 @@ export const UserManagement: React.FC = () => {
                           variant="ghost"
                           icon={user.is_active ? ShieldOff : Shield}
                           onClick={() => handleToggleUserStatus(user)}
+                          className="hidden sm:flex"
                         >
                           {user.is_active ? 'Deactivate' : 'Activate'}
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleToggleUserStatus(user)}
+                          className="sm:hidden p-1"
+                        >
+                          {user.is_active ? <ShieldOff className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
                         </Button>
                         
                         <Button
@@ -403,20 +425,44 @@ export const UserManagement: React.FC = () => {
                             setSelectedUser(user);
                             setShowEditModal(true);
                           }}
+                          className="hidden sm:flex"
                         >
                           Edit
                         </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setShowEditModal(true);
+                          }}
+                          className="sm:hidden p-1"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
 
                         {user.id !== currentUser?.user.id && (
-                          <Button
+                          <>
+                            <Button
                             size="sm"
                             variant="ghost"
                             icon={Trash2}
                             onClick={() => handleDeleteUser(user.id)}
-                            className="text-red-600 hover:text-red-800"
+                            className="text-red-600 hover:text-red-800 hidden sm:flex"
                           >
                             Delete
                           </Button>
+                            
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteUser(user.id)}
+                              className="text-red-600 hover:text-red-800 sm:hidden p-1"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
                       </>
                     )}
@@ -426,10 +472,11 @@ export const UserManagement: React.FC = () => {
             ))}
           </tbody>
         </table>
+        </div>
 
         {filteredUsers.length === 0 && (
           <div className="text-center py-12">
-            <Shield className="mx-auto h-16 w-16 text-gray-400" />
+            <Shield className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
             <p className="mt-1 text-sm text-gray-500">
               {isSupabaseConnected ? 'Get started by adding your first user.' : 'Connect to Supabase to manage users.'}
@@ -443,7 +490,7 @@ export const UserManagement: React.FC = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         title="Create New User"
-        size="lg"
+        size="md"
       >
         <UserForm
           onSuccess={handleUserCreated}
@@ -456,7 +503,7 @@ export const UserManagement: React.FC = () => {
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         title="Edit User"
-        size="lg"
+        size="md"
       >
         {selectedUser && (
           <UserForm
