@@ -8,7 +8,7 @@ import { supabaseAdmin } from '../../lib/supabase';
 import { User, Role, UserRight } from '../../types';
 import { validatePassword } from '../../utils/validation';
 import { useAuth } from '../../hooks/useAuth';
-import toast from 'react-hot-toast';
+import { handleSupabaseError, showSuccessMessage, handleNetworkError } from '../../utils/apiErrorHandler';
 
 const userSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -88,14 +88,14 @@ export const UserForm: React.FC<UserFormProps> = ({
 
   const onSubmit = async (data: UserFormData) => {
     if (!isSupabaseConnected) {
-      toast.error('User management not available in demo mode');
+      handleSupabaseError({ message: 'User management not available in demo mode' }, 'manage users');
       return;
     }
 
     if (!isEdit && data.password) {
       const validation = validatePassword(data.password);
       if (!validation.isValid) {
-        toast.error(`Password validation failed: ${validation.errors.join(', ')}`);
+        handleSupabaseError({ message: `Password validation failed: ${validation.errors.join(', ')}` }, 'validate password');
         return;
       }
     }
@@ -121,20 +121,7 @@ export const UserForm: React.FC<UserFormProps> = ({
           .eq('id', user!.id);
 
         if (updateError) {
-          console.error('Error updating user:', updateError);
-          if (updateError.code === '23505') {
-            toast.error('A user with this email already exists');
-          } else if (updateError.code === '23503') {
-            toast.error('Invalid role selected');
-          } else if (updateError.code === 'PGRST301') {
-            toast.error('Access denied: insufficient permissions to update user');
-          } else if (updateError.code === 'PGRST116') {
-            toast.error('User not found');
-          } else if (updateError.code === '42501') {
-            toast.error('Database permission error. Please contact administrator.');
-          } else {
-            toast.error(`Failed to update user: ${updateError.message}`);
-          }
+          handleSupabaseError(updateError, 'update user');
           return;
         }
 
@@ -145,7 +132,7 @@ export const UserForm: React.FC<UserFormProps> = ({
           .eq('user_id', user!.id);
 
         if (deleteRightsError) {
-          console.error('Error deleting old user rights:', deleteRightsError);
+          handleSupabaseError(deleteRightsError, 'delete old user rights');
           // Don't show error for rights deletion as it might not exist
         }
 
@@ -160,23 +147,16 @@ export const UserForm: React.FC<UserFormProps> = ({
             .insert(rightsData);
 
           if (rightsError) {
-            console.error('Error inserting user rights:', rightsError);
-            if (rightsError.code === '23503') {
-              toast.error('User updated but some rights are invalid');
-            } else if (rightsError.code === '23505') {
-              toast.error('User updated but some rights already exist');
-            } else {
-              toast.error('User updated but failed to assign rights');
-            }
+            handleSupabaseError(rightsError, 'assign user rights');
             // Don't return here, user was still updated successfully
           }
         }
 
-        toast.success('User updated successfully');
+        showSuccessMessage('User updated successfully');
       } else {
         // Validate required fields
         if (!data.password) {
-          toast.error('Password is required for new users');
+          handleSupabaseError({ message: 'Password is required for new users' }, 'create user');
           return;
         }
 
@@ -197,23 +177,12 @@ export const UserForm: React.FC<UserFormProps> = ({
           .single();
 
         if (userError) {
-          console.error('Error creating user:', userError);
-          if (userError.code === '23505') {
-            toast.error('A user with this email already exists');
-          } else if (userError.code === '23503') {
-            toast.error('Invalid role selected');
-          } else if (userError.code === 'PGRST301') {
-            toast.error('Access denied: insufficient permissions to create user');
-          } else if (userError.code === '42501') {
-            toast.error('Database permission error. Please contact administrator.');
-          } else {
-            toast.error(`Failed to create user: ${userError.message}`);
-          }
+          handleSupabaseError(userError, 'create user');
           return;
         }
 
         if (!userData) {
-          toast.error('User creation failed: No data returned');
+          handleSupabaseError({ message: 'User creation failed: No data returned' }, 'create user');
           return;
         }
 
@@ -229,25 +198,17 @@ export const UserForm: React.FC<UserFormProps> = ({
             .insert(rightsData);
 
           if (rightsError) {
-            console.error('Error inserting user rights:', rightsError);
-            if (rightsError.code === '23503') {
-              toast.error('User created but some rights are invalid');
-            } else if (rightsError.code === '23505') {
-              toast.error('User created but some rights already exist');
-            } else {
-              toast.error('User created but failed to assign rights');
-            }
+            handleSupabaseError(rightsError, 'assign user rights');
             // Don't return here, user was still created successfully
           }
         }
 
-        toast.success('User created successfully');
+        showSuccessMessage('User created successfully');
       }
       
       onSuccess();
     } catch (error) {
-      console.error('Error saving user:', error);
-      toast.error(`Network error: Failed to ${isEdit ? 'update' : 'create'} user`);
+      handleNetworkError(`${isEdit ? 'update' : 'create'} user`);
     }
   };
 

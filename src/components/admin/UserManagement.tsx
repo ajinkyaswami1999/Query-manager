@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Shield, ShieldOff } from 'lucide-react';
+import { Plus, CreditCard as Edit, Trash2, Shield, ShieldOff } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';

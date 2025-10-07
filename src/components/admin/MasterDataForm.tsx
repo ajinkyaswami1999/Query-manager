@@ -7,7 +7,7 @@ import { Button } from '../ui/Button';
 import { supabaseAdmin } from '../../lib/supabase';
 import { DatabaseEngine, Category, Tag } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
-import toast from 'react-hot-toast';
+import { handleSupabaseError, showSuccessMessage, handleNetworkError } from '../../utils/apiErrorHandler';
 
 const masterDataSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -49,7 +49,7 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
 
   const onSubmit = async (data: MasterDataFormData) => {
     if (!isSupabaseConnected) {
-      toast.error('Master data management not available in demo mode');
+      handleSupabaseError({ message: 'Master data management not available in demo mode' }, 'manage master data');
       return;
     }
 
@@ -71,20 +71,11 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
           .eq('id', item!.id);
 
         if (error) {
-          console.error('Error updating item:', error);
-          if (error.code === '23505') {
-            toast.error('This name already exists. Please choose a different name.');
-          } else if (error.code === 'PGRST301') {
-            toast.error('Access denied: insufficient permissions to update this item');
-          } else if (error.code === 'PGRST116') {
-            toast.error('Item not found');
-          } else {
-            toast.error(`Failed to update ${config.title.slice(0, -1).toLowerCase()}: ${error.message}`);
-          }
+          handleSupabaseError(error, `update ${config.title.slice(0, -1).toLowerCase()}`);
           return;
         }
         
-        toast.success(`${config.title.slice(0, -1)} updated successfully`);
+        showSuccessMessage(`${config.title.slice(0, -1)} updated successfully`);
       } else {
         // Use service role to bypass RLS
         const { error } = await supabaseAdmin
@@ -92,24 +83,16 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
           .insert(payload);
 
         if (error) {
-          console.error('Error creating item:', error);
-          if (error.code === '23505') {
-            toast.error('This name already exists. Please choose a different name.');
-          } else if (error.code === 'PGRST301') {
-            toast.error('Access denied: insufficient permissions to create this item');
-          } else {
-            toast.error(`Failed to create ${config.title.slice(0, -1).toLowerCase()}: ${error.message}`);
-          }
+          handleSupabaseError(error, `create ${config.title.slice(0, -1).toLowerCase()}`);
           return;
         }
         
-        toast.success(`${config.title.slice(0, -1)} created successfully`);
+        showSuccessMessage(`${config.title.slice(0, -1)} created successfully`);
       }
       
       onSuccess();
     } catch (error: any) {
-      console.error('Error saving item:', error);
-      toast.error(`Network error: Failed to ${isEdit ? 'update' : 'create'} ${config.title.slice(0, -1).toLowerCase()}`);
+      handleNetworkError(`${isEdit ? 'update' : 'create'} ${config.title.slice(0, -1).toLowerCase()}`);
     }
   };
 

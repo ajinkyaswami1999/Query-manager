@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase, supabaseAdmin } from '../lib/supabase';
 import { AuthUser, User, Role, UserRight } from '../types';
-import toast from 'react-hot-toast';
+import { handleSupabaseError, showSuccessMessage, handleNetworkError } from '../utils/apiErrorHandler';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -161,19 +161,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .single();
 
       if (userError) {
-        console.error('Error loading user data:', userError);
-        if (userError.code === 'PGRST116') {
-          toast.error('User profile not found');
-        } else if (userError.message.includes('relation') && userError.message.includes('does not exist')) {
-          toast.error('Database schema incomplete. Please run migrations.');
-        } else {
-          toast.error(`Failed to load user profile: ${userError.message}`);
-        }
+        handleSupabaseError(userError, 'load user profile');
         return;
       }
 
       if (!userData) {
-        toast.error('User not found or inactive');
+        handleSupabaseError({ message: 'User not found or inactive' }, 'load user profile');
         return;
       }
 
@@ -186,8 +179,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .eq('user_id', userData.id);
 
       if (rightsError) {
-        console.error('Error loading user rights:', rightsError);
-        toast.error('Warning: Failed to load user permissions');
+        handleSupabaseError(rightsError, 'load user permissions');
         // Continue without rights if there's an error
       }
 
@@ -200,10 +192,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       };
 
       setUser(authUser);
-      console.log('User data loaded successfully:', authUser.user.email);
     } catch (error) {
-      console.error('Error loading user data:', error);
-      toast.error('Network error: Failed to load user profile');
+      handleNetworkError('load user profile');
     }
   };
 
@@ -214,12 +204,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const fallbackUser = FALLBACK_USERS.find(u => u.email === email && u.password_hash === password);
         
         if (!fallbackUser) {
-          toast.error('Invalid email or password');
+          handleSupabaseError({ message: 'Invalid email or password' }, 'sign in');
           return false;
         }
 
         if (!fallbackUser.is_active) {
-          toast.error('Your account is deactivated. Please contact administrator.');
+          handleSupabaseError({ message: 'Your account is deactivated. Please contact administrator' }, 'sign in');
           return false;
         }
 
@@ -233,7 +223,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           rights: rights
         });
 
-        toast.success('Signed in successfully (Demo Mode)');
+        showSuccessMessage('Signed in successfully (Demo Mode)');
         return true;
       }
 
@@ -249,27 +239,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .single();
 
       if (userError) {
-        if (userError.code === 'PGRST116') {
-          toast.error('Invalid email or password');
-        } else if (userError.message.includes('relation') && userError.message.includes('does not exist')) {
-          toast.error('Database not properly configured. Please contact administrator.');
-        } else if (userError.code === 'PGRST301') {
-          toast.error('Access denied: insufficient permissions');
-        } else {
-          console.error('Database error:', userError);
-          toast.error(`Authentication failed: ${userError.message}`);
-        }
+        handleSupabaseError(userError, 'authenticate user');
         return false;
       }
 
       if (!userData) {
-        toast.error('User not found or account is inactive');
+        handleSupabaseError({ message: 'User not found or account is inactive' }, 'authenticate user');
         return false;
       }
 
       // Verify password
       if (userData.password_hash !== password) {
-        toast.error('Invalid email or password');
+        handleSupabaseError({ message: 'Invalid email or password' }, 'authenticate user');
         return false;
       }
 
@@ -291,14 +272,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           });
 
           if (signUpError) {
-            console.error('Sign up error:', signUpError);
-            if (signUpError.message.includes('already registered')) {
-              toast.error('User already exists in authentication system');
-            } else if (signUpError.message.includes('Password should be')) {
-              toast.error('Password does not meet authentication system requirements');
-            } else {
-              toast.error(`Authentication setup failed: ${signUpError.message}`);
-            }
+            handleSupabaseError(signUpError, 'set up authentication');
             return false;
           }
 
@@ -312,20 +286,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               rights: rights
             };
             setUser(authUser);
-            toast.success('Signed in successfully');
+            showSuccessMessage('Signed in successfully');
             return true;
           }
         } else {
-          console.error('Auth error:', authError);
-          if (authError.message.includes('Invalid login credentials')) {
-            toast.error('Invalid email or password');
-          } else if (authError.message.includes('Email not confirmed')) {
-            toast.error('Please confirm your email address');
-          } else if (authError.message.includes('too_many_requests')) {
-            toast.error('Too many login attempts. Please try again later.');
-          } else {
-            toast.error(`Authentication failed: ${authError.message}`);
-          }
+          handleSupabaseError(authError, 'authenticate');
           return false;
         }
       }
@@ -339,14 +304,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           rights: rights
         };
         setUser(authUser);
-        toast.success('Signed in successfully');
+        showSuccessMessage('Signed in successfully');
         return true;
       }
 
       return false;
     } catch (error) {
-      console.error('Sign in error:', error);
-      toast.error('Network error: Unable to connect to authentication service');
+      handleNetworkError('sign in');
       return false;
     }
   };
@@ -381,17 +345,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (isSupabaseConnected) {
         const { error } = await supabase.auth.signOut();
         if (error) {
-          console.error('Sign out error:', error);
-          toast.error('Sign out failed');
+          handleSupabaseError(error, 'sign out');
           return;
         }
       }
       
       setUser(null);
-      toast.success('Signed out successfully');
+      showSuccessMessage('Signed out successfully');
     } catch (error) {
-      console.error('Sign out error:', error);
-      toast.error('Sign out failed');
+      handleNetworkError('sign out');
     }
   };
 
@@ -408,12 +370,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error checking user existence:', error);
+        handleSupabaseError(error, 'check user existence');
       }
 
       return !error && !!data;
     } catch (error) {
-      console.error('Error checking user existence:', error);
+      handleNetworkError('check user existence');
       return false;
     }
   };

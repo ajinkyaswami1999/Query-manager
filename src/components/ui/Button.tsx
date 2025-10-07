@@ -1,5 +1,5 @@
 import React from 'react';
-import { DivideIcon as LucideIcon } from 'lucide-react';
+import { Divide as LucideIcon } from 'lucide-react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
@@ -18,14 +18,14 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseClasses = 'inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 transform hover:scale-[1.02] active:scale-[0.98]';
+  const baseClasses = 'inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 transform hover:scale-[1.05] active:scale-[0.95] glow-on-hover relative overflow-hidden';
   
   const variantClasses = {
-    primary: 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white focus:ring-blue-500 shadow-lg hover:shadow-xl',
-    secondary: 'bg-white/10 backdrop-blur-sm hover:bg-white/20 text-gray-700 border border-gray-200 hover:border-gray-300 focus:ring-gray-500 shadow-sm hover:shadow-md',
-    danger: 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white focus:ring-red-500 shadow-lg hover:shadow-xl',
-    ghost: 'hover:bg-gray-100 text-gray-700 focus:ring-gray-500',
-    success: 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white focus:ring-emerald-500 shadow-lg hover:shadow-xl'
+    primary: 'bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 text-white focus:ring-blue-500 shadow-lg hover:shadow-2xl animate-gradient',
+    secondary: 'bg-white/90 backdrop-blur-sm hover:bg-white text-gray-700 border border-gray-200 hover:border-blue-300 focus:ring-gray-500 shadow-sm hover:shadow-lg',
+    danger: 'bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white focus:ring-red-500 shadow-lg hover:shadow-2xl',
+    ghost: 'hover:bg-gradient-to-r hover:from-gray-100 hover:to-blue-50 text-gray-700 focus:ring-gray-500',
+    success: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-green-600 hover:from-emerald-600 hover:via-teal-600 hover:to-green-700 text-white focus:ring-emerald-500 shadow-lg hover:shadow-2xl'
   };
 
   const sizeClasses = {

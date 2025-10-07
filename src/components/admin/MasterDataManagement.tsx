@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, CreditCard as Edit, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { supabaseAdmin } from '../../lib/supabase';
 import { DatabaseEngine, Category, Tag } from '../../types';
 import { formatDate } from '../../utils/validation';
-import toast from 'react-hot-toast';
+import { handleSupabaseError, showSuccessMessage, handleNetworkError } from '../../utils/apiErrorHandler';
 import { MasterDataForm } from './MasterDataForm';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -115,16 +115,7 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error loading data:', error);
-        if (error.code === 'PGRST301') {
-          toast.error(`Access denied: insufficient permissions to load ${config.title.toLowerCase()}`);
-        } else if (error.code === 'PGRST116') {
-          toast.error('Database tables not found. Please ensure migrations are applied.');
-        } else if (error.message.includes('relation') && error.message.includes('does not exist')) {
-          toast.error('Database schema incomplete. Please run migrations.');
-        } else {
-          toast.error(`Failed to load ${config.title.toLowerCase()}: ${error.message}`);
-        }
+        handleSupabaseError(error, `load ${config.title.toLowerCase()}`);
         // Fallback to demo data on error
         switch (activeSection) {
           case 'databases':
@@ -144,8 +135,7 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
 
       setData(result || []);
     } catch (error) {
-      console.error('Error loading data:', error);
-      toast.error(`Network error: Failed to connect to database`);
+      handleNetworkError(`load ${config.title.toLowerCase()}`);
       // Fallback to demo data on error
       switch (activeSection) {
         case 'databases':
@@ -172,7 +162,7 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
 
     try {
       if (!isSupabaseConnected) {
-        toast.error('Delete not available in demo mode');
+        handleSupabaseError({ message: 'Delete not available in demo mode' }, `delete ${config.title.slice(0, -1).toLowerCase()}`);
         return;
       }
 
@@ -183,24 +173,14 @@ export const MasterDataManagement: React.FC<MasterDataManagementProps> = ({ acti
         .eq('id', id);
 
       if (error) {
-        console.error('Error deleting item:', error);
-        if (error.code === '23503') {
-          toast.error(`Cannot delete: ${config.title.slice(0, -1).toLowerCase()} is being used by existing queries or data`);
-        } else if (error.code === 'PGRST301') {
-          toast.error(`Access denied: insufficient permissions to delete ${config.title.slice(0, -1).toLowerCase()}`);
-        } else if (error.code === 'PGRST116') {
-          toast.error(`${config.title.slice(0, -1)} not found`);
-        } else {
-          toast.error(`Failed to delete ${config.title.slice(0, -1).toLowerCase()}: ${error.message}`);
-        }
+        handleSupabaseError(error, `delete ${config.title.slice(0, -1).toLowerCase()}`);
         return;
       }
 
-      toast.success(`${config.title.slice(0, -1)} deleted successfully`);
+      showSuccessMessage(`${config.title.slice(0, -1)} deleted successfully`);
       loadData();
     } catch (error) {
-      console.error('Error deleting item:', error);
-      toast.error(`Network error: Failed to delete ${config.title.slice(0, -1).toLowerCase()}`);
+      handleNetworkError(`delete ${config.title.slice(0, -1).toLowerCase()}`);
     }
   };
 
