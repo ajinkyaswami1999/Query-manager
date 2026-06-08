@@ -12,25 +12,29 @@ export const Dashboard: React.FC = () => {
       case 'queries':
         return <QueryList />;
       case 'users':
-        return <UserManagement />;
+        return (
+          <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+            <UserManagement />
+          </div>
+        );
       case 'databases':
       case 'categories':
       case 'tags':
       case 'admin':
-        return <MasterDataManagement activeSection={activeTab} />;
+        return (
+          <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+            <MasterDataManagement activeSection={activeTab} />
+          </div>
+        );
       default:
         return <QueryList />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
+    <div className="min-h-screen bg-gray-50">
       <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
-      <div className="flex">
-        <main className="flex-1">
-          {renderContent()}
-        </main>
-      </div>
+      <main>{renderContent()}</main>
     </div>
   );
 };

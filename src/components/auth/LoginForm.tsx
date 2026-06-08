@@ -79,6 +79,7 @@ export const LoginForm: React.FC = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <Input
               label="Email Address"
+              labelClassName="text-gray-200"
               type="email"
               placeholder="Enter your email"
               error={errors.email?.message}
@@ -89,6 +90,7 @@ export const LoginForm: React.FC = () => {
             <div>
               <Input
                 label="Password"
+                labelClassName="text-gray-200"
                 placeholder="Enter your password"
                 showPasswordToggle
                 error={errors.password?.message}

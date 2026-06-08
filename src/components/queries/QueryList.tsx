@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, ListFilter as Filter, ListFilter as FilterX, Copy, CreditCard as Edit, Share, Trash2, Eye, Database, Tag, Folder, FileText, Calendar, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Plus, Search, SlidersHorizontal, Copy, CreditCard as Edit, Share, Trash2, Eye,
+  Database, Tag, Folder, FileText, Calendar, User, ChevronLeft, ChevronRight, X
+} from 'lucide-react';
 import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase, supabaseAdmin } from '../../lib/supabase';
+import { supabaseAdmin } from '../../lib/supabase';
 import { Query, DatabaseEngine, Category, Tag as TagType } from '../../types';
 import { formatDate, copyToClipboard } from '../../utils/validation';
 import { handleSupabaseError, showSuccessMessage, handleNetworkError } from '../../utils/apiErrorHandler';
 import { QueryForm } from './QueryForm';
 
-// Fallback data when Supabase is not connected
 const FALLBACK_ENGINES = [
   { id: 'engine-1', engine_name: 'MySQL', description: 'MySQL Database Engine', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
   { id: 'engine-2', engine_name: 'PostgreSQL', description: 'PostgreSQL Database Engine', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
@@ -37,15 +38,14 @@ const FALLBACK_QUERIES = [
     category_id: 'cat-1',
     tag_id: 'tag-1',
     query_text: `-- MTD & LMTD & FTD & LM Sale_Executive-wise Comparison
-SELECT 
+SELECT
   COALESCE(p.sales_executive_code, 'NOT AVAILABLE') AS 'Sales Executive Code',
   COALESCE(p.sales_executive_name, 'NOT AVAILABLE') AS 'Sales Executive Name',
-  -- MTD: from 1st of current month
-  ROUND(SUM(CASE 
-    WHEN a.invoice_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01') 
-    AND a.invoice_date <= CURDATE() 
-    THEN a.net_amount 
-    ELSE 0 
+  ROUND(SUM(CASE
+    WHEN a.invoice_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+    AND a.invoice_date <= CURDATE()
+    THEN a.net_amount
+    ELSE 0
   END), 2) AS 'MTD Amount'`,
     description: 'Monthly, Last Month, Financial Year and Last Year sales comparison by executive',
     is_shared: true,
@@ -65,15 +65,14 @@ SELECT
     category_id: 'cat-1',
     tag_id: 'tag-1',
     query_text: `-- Rate Plan sale Executive_wise
-SELECT 
+SELECT
   e.sales_executive_code,
   e.sales_executive_name,
-  -- MTD: from 1st of current month
-  ROUND(SUM(CASE 
-    WHEN a.invoice_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01') 
-    AND a.invoice_date <= CURDATE() 
-    THEN a.net_amount 
-    ELSE 0 
+  ROUND(SUM(CASE
+    WHEN a.invoice_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+    AND a.invoice_date <= CURDATE()
+    THEN a.net_amount
+    ELSE 0
   END), 2) AS 'MTD Amount'`,
     description: 'Rate plan analysis by sales executive performance',
     is_shared: true,
@@ -93,16 +92,15 @@ SELECT
     category_id: 'cat-1',
     tag_id: 'tag-1',
     query_text: `-- MTD & LMTD & FTD & LM Retailer-wise Comparison
-SELECT 
+SELECT
   r.party_code AS 'Retailer Party Code',
   r.name AS branch_name,
   r.sales_executive_name,
-  -- Current month data
-  ROUND(SUM(CASE 
-    WHEN DATE(s.date) >= DATE_FORMAT(CURDATE(), '%Y-%m-01') 
-    AND DATE(s.date) <= CURDATE() 
-    THEN s.amount 
-    ELSE 0 
+  ROUND(SUM(CASE
+    WHEN DATE(s.date) >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+    AND DATE(s.date) <= CURDATE()
+    THEN s.amount
+    ELSE 0
   END), 2) AS 'MTD'`,
     description: 'MTD & LMTD & FTD & LM Retailer-wise Comparison',
     is_shared: true,
@@ -130,11 +128,11 @@ export const QueryList: React.FC = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedQuery, setSelectedQuery] = useState<Query | null>(null);
   const [showFilters, setShowFilters] = useState(true);
-  
+
   const [engines, setEngines] = useState<DatabaseEngine[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
-  
+
   const { user, hasRight, isSupabaseConnected } = useAuth();
 
   useEffect(() => {
@@ -149,37 +147,23 @@ export const QueryList: React.FC = () => {
   const loadQueries = async () => {
     try {
       setLoading(true);
-      
       if (!isSupabaseConnected) {
-        // Use fallback data
         setQueries(FALLBACK_QUERIES);
         setLoading(false);
         return;
       }
-
-      // Use service role to bypass RLS for loading queries
       const { data, error } = await supabaseAdmin
         .from('queries')
-        .select(`
-          *,
-          engine:database_engine_master(*),
-          category:category_master(*),
-          tag:tags_master(*),
-          creator:users!queries_created_by_fkey(name, email)
-        `)
+        .select(`*, engine:database_engine_master(*), category:category_master(*), tag:tags_master(*), creator:users!queries_created_by_fkey(name, email)`)
         .order('created_at', { ascending: false });
-
       if (error) {
         handleSupabaseError(error, 'load queries');
-        // Fallback to demo data on error
         setQueries(FALLBACK_QUERIES);
         return;
       }
-
       setQueries(data || []);
     } catch (error) {
       handleNetworkError('load queries');
-      // Fallback to demo data on error
       setQueries(FALLBACK_QUERIES);
     } finally {
       setLoading(false);
@@ -194,37 +178,16 @@ export const QueryList: React.FC = () => {
         setTags(FALLBACK_TAGS);
         return;
       }
-
-      // Use service role to bypass RLS for master data - load in parallel for better performance
       const [enginesRes, categoriesRes, tagsRes] = await Promise.all([
         supabaseAdmin.from('database_engine_master').select('*').eq('is_active', true).order('engine_name'),
         supabaseAdmin.from('category_master').select('*').eq('is_active', true).order('category_name'),
         supabaseAdmin.from('tags_master').select('*').eq('is_active', true).order('tag_name')
       ]);
-
-      if (enginesRes.error) {
-        handleSupabaseError(enginesRes.error, 'load database engines');
-        setEngines(FALLBACK_ENGINES);
-      } else {
-        setEngines(enginesRes.data || []);
-      }
-
-      if (categoriesRes.error) {
-        handleSupabaseError(categoriesRes.error, 'load categories');
-        setCategories(FALLBACK_CATEGORIES);
-      } else {
-        setCategories(categoriesRes.data || []);
-      }
-
-      if (tagsRes.error) {
-        handleSupabaseError(tagsRes.error, 'load tags');
-        setTags(FALLBACK_TAGS);
-      } else {
-        setTags(tagsRes.data || []);
-      }
+      setEngines(enginesRes.error ? FALLBACK_ENGINES : (enginesRes.data || []));
+      setCategories(categoriesRes.error ? FALLBACK_CATEGORIES : (categoriesRes.data || []));
+      setTags(tagsRes.error ? FALLBACK_TAGS : (tagsRes.data || []));
     } catch (error) {
       handleNetworkError('load master data');
-      // Fallback to demo data on error
       setEngines(FALLBACK_ENGINES);
       setCategories(FALLBACK_CATEGORIES);
       setTags(FALLBACK_TAGS);
@@ -233,7 +196,6 @@ export const QueryList: React.FC = () => {
 
   const filterQueries = () => {
     let filtered = queries;
-
     if (searchTerm) {
       filtered = filtered.filter(query =>
         query.query_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -241,19 +203,9 @@ export const QueryList: React.FC = () => {
         query.query_text.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
-    if (selectedEngine) {
-      filtered = filtered.filter(query => query.engine_id === selectedEngine);
-    }
-
-    if (selectedCategory) {
-      filtered = filtered.filter(query => query.category_id === selectedCategory);
-    }
-
-    if (selectedTag) {
-      filtered = filtered.filter(query => query.tag_id === selectedTag);
-    }
-
+    if (selectedEngine) filtered = filtered.filter(q => q.engine_id === selectedEngine);
+    if (selectedCategory) filtered = filtered.filter(q => q.category_id === selectedCategory);
+    if (selectedTag) filtered = filtered.filter(q => q.tag_id === selectedTag);
     setFilteredQueries(filtered);
   };
 
@@ -272,22 +224,11 @@ export const QueryList: React.FC = () => {
         handleSupabaseError({ message: 'Sharing not available in demo mode' }, 'share query');
         return;
       }
-
-      // Use service role to bypass RLS for sharing
       const { error } = await supabaseAdmin
         .from('queries')
-        .update({ 
-          is_shared: !query.is_shared,
-          updated_at: new Date().toISOString(),
-          updated_by: user?.user.id
-        })
+        .update({ is_shared: !query.is_shared, updated_at: new Date().toISOString(), updated_by: user?.user.id })
         .eq('id', query.id);
-
-      if (error) {
-        handleSupabaseError(error, 'share query');
-        return;
-      }
-
+      if (error) { handleSupabaseError(error, 'share query'); return; }
       showSuccessMessage(`Query ${query.is_shared ? 'unshared' : 'shared'} successfully`);
       loadQueries();
     } catch (error) {
@@ -297,24 +238,13 @@ export const QueryList: React.FC = () => {
 
   const handleDeleteQuery = async (queryId: string) => {
     if (!window.confirm('Are you sure you want to delete this query?')) return;
-
     try {
       if (!isSupabaseConnected) {
         handleSupabaseError({ message: 'Delete not available in demo mode' }, 'delete query');
         return;
       }
-
-      // Use service role to bypass RLS for deletion
-      const { error } = await supabaseAdmin
-        .from('queries')
-        .delete()
-        .eq('id', queryId);
-
-      if (error) {
-        handleSupabaseError(error, 'delete query');
-        return;
-      }
-
+      const { error } = await supabaseAdmin.from('queries').delete().eq('id', queryId);
+      if (error) { handleSupabaseError(error, 'delete query'); return; }
       showSuccessMessage('Query deleted successfully');
       loadQueries();
     } catch (error) {
@@ -322,57 +252,74 @@ export const QueryList: React.FC = () => {
     }
   };
 
-  const handleQueryCreated = () => {
-    setShowCreateModal(false);
-    loadQueries(); // Refresh the list
-  };
-
-  const handleQueryUpdated = () => {
-    setShowEditModal(false);
-    setSelectedQuery(null);
-    loadQueries(); // Refresh the list
-  };
+  const handleQueryCreated = () => { setShowCreateModal(false); loadQueries(); };
+  const handleQueryUpdated = () => { setShowEditModal(false); setSelectedQuery(null); loadQueries(); };
 
   const canCreateQuery = hasRight('CREATE_QUERY');
   const canUpdateQuery = hasRight('UPDATE_QUERY');
   const canDeleteQuery = hasRight('DELETE_QUERY');
   const canShareQuery = hasRight('SHARE_QUERY');
 
+  const hasActiveFilters = selectedEngine || selectedCategory || selectedTag;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="flex flex-col items-center space-y-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
+          <p className="text-sm text-gray-500">Loading queries…</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 animate-gradient">
-      {/* Left Sidebar - Filters */}
-      <div className={`${showFilters ? 'w-80 lg:w-96' : 'w-0'} transition-all duration-500 ease-in-out overflow-hidden bg-white/95 backdrop-blur-xl shadow-2xl border-r border-gray-200/50 fixed lg:relative h-full lg:h-auto z-40 lg:z-auto`}>
-        <div className="p-4 lg:p-6 space-y-4 lg:space-y-6 w-80 lg:w-96 h-full overflow-y-auto slide-in-left">
+    <div className="flex" style={{ minHeight: 'calc(100vh - 57px)' }}>
+      {/* Mobile overlay — must be a sibling of the sidebar, not nested inside it */}
+      {showFilters && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 lg:hidden"
+          onClick={() => setShowFilters(false)}
+        />
+      )}
+
+      {/* Filter Sidebar */}
+      <aside
+        className={`
+          flex-shrink-0 bg-white border-r border-gray-200 overflow-hidden
+          transition-all duration-300 ease-in-out
+          fixed inset-y-0 left-0 z-40 lg:relative lg:z-auto lg:inset-y-auto
+          ${showFilters ? 'w-72 translate-x-0' : 'w-0 -translate-x-full lg:translate-x-0'}
+        `}
+        style={{ top: '57px' }}
+      >
+        <div className="w-72 h-full overflow-y-auto p-5 space-y-5">
+          {/* Sidebar Header */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-gray-700">
-              <Filter className="h-5 w-5 text-blue-600 floating" />
-              <h2 className="font-bold text-base lg:text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Smart Filters</h2>
+            <div className="flex items-center space-x-2">
+              <div className="h-8 w-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                <SlidersHorizontal className="h-4 w-4 text-blue-600" />
+              </div>
+              <h2 className="font-bold text-gray-900 text-sm">Filters</h2>
             </div>
             <button
               onClick={() => setShowFilters(false)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-all duration-300 lg:p-1 hover:scale-110"
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors hidden lg:flex"
             >
-              <ChevronLeft className="h-4 w-4 text-gray-500" />
+              <ChevronLeft className="h-4 w-4 text-gray-400" />
             </button>
           </div>
 
-          <div className="space-y-3 lg:space-y-4">
+          {/* Filter Controls */}
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 lg:mb-2">
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                 Database Engine
               </label>
               <select
                 value={selectedEngine}
                 onChange={(e) => setSelectedEngine(e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 lg:px-4 lg:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm hover:shadow-lg transition-all duration-300 glow-on-hover"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm text-gray-700"
               >
                 <option value="">All Engines</option>
                 {engines.map(engine => (
@@ -380,18 +327,15 @@ export const QueryList: React.FC = () => {
                 ))}
               </select>
             </div>
-        </div>
-
-
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 lg:mb-2">
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                 Category
               </label>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm hover:shadow-lg transition-all duration-300 glow-on-hover"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm text-gray-700"
               >
                 <option value="">All Categories</option>
                 {categories.map(category => (
@@ -401,346 +345,341 @@ export const QueryList: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 lg:mb-2">
-                <Tag className="inline h-4 w-4 mr-1" />
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                 Tags
               </label>
-              <div className="space-y-1 lg:space-y-2">
+              <div className="space-y-1">
                 {tags.map(tag => (
-                  <div key={tag.id} className="flex items-center space-x-2 lg:space-x-3 p-2 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-lg transition-all duration-300">
+                  <label
+                    key={tag.id}
+                    className="flex items-center space-x-3 p-2.5 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors"
+                  >
                     <input
                       type="checkbox"
-                      id={`tag_${tag.id}`}
                       checked={selectedTag === tag.id}
                       onChange={(e) => setSelectedTag(e.target.checked ? tag.id : '')}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-all duration-300"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
-                    <label
-                      htmlFor={`tag_${tag.id}`}
-                      className="text-sm text-gray-700 cursor-pointer flex-1"
-                    >
-                      {tag.tag_name}
-                    </label>
-                  </div>
+                    <span className="text-sm text-gray-700">{tag.tag_name}</span>
+                  </label>
                 ))}
               </div>
             </div>
+
+            {hasActiveFilters && (
+              <button
+                onClick={() => { setSelectedEngine(''); setSelectedCategory(''); setSelectedTag(''); }}
+                className="w-full py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-red-100"
+              >
+                Clear All Filters
+              </button>
+            )}
           </div>
 
-          <div className="pt-4 lg:pt-6 border-t border-gray-200 bounce-in">
-            <div className="text-sm text-gray-600 space-y-1">
-              <div className="flex items-center space-x-2">
+          {/* Stats */}
+          <div className="border-t border-gray-100 pt-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
                 <FileText className="h-4 w-4" />
-                <span>Total Queries: {queries.length}</span>
+                <span>Total</span>
               </div>
-              <div className="flex items-center space-x-2">
+              <span className="text-sm font-semibold text-gray-900">{queries.length}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <SlidersHorizontal className="h-4 w-4" />
+                <span>Shown</span>
+              </div>
+              <span className="text-sm font-semibold text-gray-900">{filteredQueries.length}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
                 <Folder className="h-4 w-4" />
-                <span>Categories: {categories.length}</span>
+                <span>Categories</span>
               </div>
+              <span className="text-sm font-semibold text-gray-900">{categories.length}</span>
             </div>
           </div>
         </div>
+      </aside>
 
-      {/* Overlay for mobile */}
-      {showFilters && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden transition-all duration-300"
-          onClick={() => setShowFilters(false)}
-        />
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto slide-in-right">
-        {/* Filter Toggle Button */}
+      {/* Main Content — sibling of sidebar, not nested inside it */}
+      <div className="flex-1 min-w-0 bg-gray-50">
+        {/* Floating button to re-open sidebar */}
         {!showFilters && (
           <button
             onClick={() => setShowFilters(true)}
-            className="fixed left-2 top-20 sm:left-4 sm:top-24 z-30 bg-white/95 backdrop-blur-xl shadow-lg rounded-xl p-2 sm:p-3 hover:shadow-2xl transition-all duration-300 border border-gray-200 floating pulse-glow"
+            className="hidden lg:block fixed left-4 z-20 bg-white shadow-lg rounded-xl p-2.5 border border-gray-200 hover:shadow-xl transition-all duration-200"
+            style={{ top: '75px' }}
           >
-            <ChevronRight className="h-5 w-5 text-gray-600" />
+            <ChevronRight className="h-4 w-4 text-gray-600" />
           </button>
         )}
 
-        {/* Connection Status Banner */}
-        {!isSupabaseConnected && (
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 shadow-lg bounce-in">
-            <div className="flex items-center space-x-2">
-              <div className="h-2 w-2 bg-amber-500 rounded-full animate-pulse"></div>
+        <div className="p-4 sm:p-6 lg:p-8">
+          {/* Demo Mode Banner */}
+          {!isSupabaseConnected && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5 flex items-center space-x-3">
+              <div className="h-2 w-2 bg-amber-500 rounded-full flex-shrink-0 animate-pulse" />
               <p className="text-sm text-amber-800">
-                <strong>Demo Mode:</strong> Supabase not connected. Using sample data for demonstration.
+                <strong>Demo Mode:</strong> Supabase not connected. Using sample data.
               </p>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0 bounce-in">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent animate-gradient">
-              SQL Queries ({filteredQueries.length})
-            </h1>
-            <p className="text-gray-600 mt-1 text-sm sm:text-base">Manage and organize your SQL query collection</p>
-          </div>
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <Button
-              variant="ghost"
-              icon={showFilters ? FilterX : Filter}
-              onClick={() => setShowFilters(!showFilters)}
-              className="text-gray-600 text-sm hover:scale-105"
-              size="sm"
-            >
-              <span className="hidden sm:inline">{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
-              <span className="sm:hidden">Filters</span>
-            </Button>
-            {canCreateQuery && (
-              <Button
-                icon={Plus}
-                onClick={() => setShowCreateModal(true)}
-                size="sm"
-                className="pulse-glow hover:scale-105"
+          {/* Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
+            <div>
+              <div className="flex items-baseline gap-2">
+                <h1 className="text-2xl font-bold text-gray-900">SQL Queries</h1>
+                <span className="text-lg font-normal text-gray-400">({filteredQueries.length})</span>
+              </div>
+              <p className="text-gray-500 text-sm mt-0.5">Manage and organize your SQL query collection</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-sm font-medium border transition-all duration-150 ${
+                  showFilters
+                    ? 'bg-blue-50 border-blue-200 text-blue-700'
+                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
               >
-                <span className="hidden sm:inline">New Query</span>
-                <span className="sm:hidden">New</span>
-              </Button>
-            )}
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="hidden sm:inline">{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
+                {hasActiveFilters && (
+                  <span className="h-2 w-2 rounded-full bg-blue-600 inline-block" />
+                )}
+              </button>
+              {canCreateQuery && (
+                <Button icon={Plus} onClick={() => setShowCreateModal(true)} size="sm">
+                  <span className="hidden sm:inline">New Query</span>
+                  <span className="sm:hidden">New</span>
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Search */}
-        <div className="mb-4 sm:mb-6 lg:mb-8 bounce-in stagger-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          {/* Search */}
+          <div className="relative mb-6">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search queries..."
+              placeholder="Search by name, description or SQL content…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/95 backdrop-blur-sm shadow-sm hover:shadow-lg transition-all duration-300 text-sm sm:text-base glow-on-hover"
+              className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm text-sm placeholder-gray-400"
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-        </div>
 
-        {/* Query Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6 bounce-in stagger-3">
+          {/* Empty State */}
           {filteredQueries.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <FileText className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No queries found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Get started by creating your first query.
+            <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-gray-200 shadow-sm">
+              <div className="h-16 w-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                <FileText className="h-8 w-8 text-gray-300" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900 mb-1">No queries found</h3>
+              <p className="text-sm text-gray-400 text-center max-w-xs mb-4">
+                {searchTerm || hasActiveFilters
+                  ? 'Try adjusting your search or filters.'
+                  : 'Get started by creating your first SQL query.'}
               </p>
+              {canCreateQuery && !searchTerm && !hasActiveFilters && (
+                <Button icon={Plus} onClick={() => setShowCreateModal(true)} size="sm">
+                  Create your first query
+                </Button>
+              )}
             </div>
           ) : (
-            filteredQueries.map((query, index) => (
-              <div key={query.id} className={`bg-white/95 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-gray-200 card-hover group gradient-border bounce-in stagger-${(index % 5) + 1}`}>
-                <div className="p-4 sm:p-6">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className="text-base sm:text-lg font-bold bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent mb-2 line-clamp-2 group-hover:from-blue-700 group-hover:to-purple-700 transition-all duration-300">
+            /* Query Cards Grid */
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+              {filteredQueries.map((query) => (
+                <div
+                  key={query.id}
+                  className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col overflow-hidden"
+                >
+                  {/* Card Body */}
+                  <div className="p-5 flex-1 space-y-3">
+                    {/* Title & Description */}
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug mb-1">
                         {query.query_name}
                       </h3>
-                      <p className="text-gray-600 text-xs sm:text-sm mb-3 line-clamp-2">
-                        {query.description || 'No description'}
+                      <p className="text-xs text-gray-400 line-clamp-2">
+                        {query.description || 'No description provided'}
                       </p>
-                      
-                      {/* Metadata */}
-                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs text-gray-500 mb-3">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="w-3 h-3" />
-                          <span className="hidden sm:inline">{formatDate(query.created_at)}</span>
-                          <span className="sm:hidden">{new Date(query.created_at).toLocaleDateString()}</span>
-                        </div>
-                        {query.creator && (
-                          <div className="flex items-center space-x-1">
-                            <User className="w-3 h-3" />
-                            <span className="truncate max-w-20 sm:max-w-none">{query.creator.name}</span>
-                          </div>
-                        )}
-                      </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex items-center space-x-1 ml-2 sm:ml-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        icon={Copy}
-                        onClick={() => handleCopyQuery(query.query_text)}
-                        className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 p-1.5 sm:p-2 hover:scale-110"
-                      />
-                      
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        icon={Edit}
-                        onClick={() => {
-                          setSelectedQuery(query);
-                          setShowEditModal(true);
-                        }}
-                        className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 p-1.5 sm:p-2 hover:scale-110"
-                      />
-
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        icon={Trash2}
-                        onClick={() => handleDeleteQuery(query.id)}
-                        className="text-gray-500 hover:text-red-600 hover:bg-red-50 p-1.5 sm:p-2 hover:scale-110"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Query Preview */}
-                  <div className="bg-gradient-to-br from-gray-50 via-blue-50 to-slate-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-gray-200 shadow-inner mb-3 sm:mb-4 glow-on-hover">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">SQL</span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedQuery(query);
-                          setShowViewModal(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-800 text-xs hover:bg-white px-2 sm:px-3 py-1 rounded-lg hover:scale-105"
-                      >
-                        <span className="hidden sm:inline">View Full →</span>
-                        <span className="sm:hidden">View →</span>
-                      </Button>
-                    </div>
-                    <div className="relative">
-                      <pre className="text-xs text-gray-800 font-mono whitespace-pre-wrap overflow-hidden line-clamp-3 sm:line-clamp-4">
-                        {query.query_text}
-                      </pre>
-                      {query.query_text.length > 150 && (
-                        <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-blue-50 to-transparent"></div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Tags */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
-                    <div className="flex items-center space-x-1 sm:space-x-2 flex-wrap gap-1">
+                    {/* Badge Tags */}
+                    <div className="flex flex-wrap gap-1.5">
                       {query.engine && (
-                        <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-xs font-semibold bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105">
-                          <Database className="w-3 h-3 mr-1" />
-                          <span className="truncate max-w-16 sm:max-w-none">{query.engine.engine_name}</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          <Database className="w-3 h-3" />
+                          {query.engine.engine_name}
                         </span>
                       )}
                       {query.category && (
-                        <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-xs font-semibold bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105">
-                          <Folder className="w-3 h-3 mr-1" />
-                          <span className="truncate max-w-16 sm:max-w-none">{query.category.category_name}</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100">
+                          <Folder className="w-3 h-3" />
+                          {query.category.category_name}
                         </span>
                       )}
                       {query.tag && (
-                        <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105">
-                          <Tag className="w-3 h-3 mr-1" />
-                          <span className="truncate max-w-16 sm:max-w-none">{query.tag.tag_name}</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-orange-50 text-orange-700 border border-orange-100">
+                          <Tag className="w-3 h-3" />
+                          {query.tag.tag_name}
+                        </span>
+                      )}
+                      {query.is_shared && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                          <Share className="w-3 h-3" />
+                          Shared
                         </span>
                       )}
                     </div>
-                    {query.is_shared && (
-                        <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-xs font-medium bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 self-start sm:self-auto shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105">
-                          <Share className="w-3 h-3 mr-1" />
-                          Shared
-                        </span>
-                    )}
+
+                    {/* SQL Code Preview */}
+                    <div className="bg-gray-950 rounded-xl overflow-hidden">
+                      <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
+                        <div className="flex items-center space-x-1.5">
+                          <div className="h-2 w-2 bg-red-500 rounded-full" />
+                          <div className="h-2 w-2 bg-yellow-400 rounded-full" />
+                          <div className="h-2 w-2 bg-green-500 rounded-full" />
+                        </div>
+                        <button
+                          onClick={() => { setSelectedQuery(query); setShowViewModal(true); }}
+                          className="text-xs text-gray-500 hover:text-gray-300 transition-colors font-mono"
+                        >
+                          View full →
+                        </button>
+                      </div>
+                      <pre className="px-3 pb-3 text-xs text-green-400 font-mono whitespace-pre-wrap line-clamp-4 leading-relaxed">
+                        {query.query_text}
+                      </pre>
+                    </div>
+                  </div>
+
+                  {/* Card Footer — always visible action buttons */}
+                  <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                      <User className="h-3 w-3" />
+                      <span className="truncate max-w-[80px]">{query.creator?.name || '—'}</span>
+                      <span className="mx-1">·</span>
+                      <Calendar className="h-3 w-3" />
+                      <span>{new Date(query.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center space-x-0.5">
+                      <button
+                        onClick={() => { setSelectedQuery(query); setShowViewModal(true); }}
+                        title="View query"
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleCopyQuery(query.query_text)}
+                        title="Copy SQL"
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                      {canUpdateQuery && (
+                        <button
+                          onClick={() => { setSelectedQuery(query); setShowEditModal(true); }}
+                          title="Edit query"
+                          className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {canShareQuery && (
+                        <button
+                          onClick={() => handleShareQuery(query)}
+                          title={query.is_shared ? 'Unshare' : 'Share'}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            query.is_shared
+                              ? 'text-blue-600 bg-blue-50'
+                              : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                          }`}
+                        >
+                          <Share className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {canDeleteQuery && (
+                        <button
+                          onClick={() => handleDeleteQuery(query.id)}
+                          title="Delete query"
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Modals */}
-        <Modal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          title="Create New Query"
-          size="lg"
-        >
-          <QueryForm
-            onSuccess={handleQueryCreated}
-            engines={engines}
-            categories={categories}
-            tags={tags}
-          />
-        </Modal>
-
-        <Modal
-          isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          title="Edit Query"
-          size="lg"
-        >
-          {selectedQuery && (
-            <QueryForm
-              query={selectedQuery}
-              onSuccess={handleQueryUpdated}
-              engines={engines}
-              categories={categories}
-              tags={tags}
-            />
-          )}
-        </Modal>
-
-        <Modal
-          isOpen={showViewModal}
-          onClose={() => setShowViewModal(false)}
-          title="Query Details"
-          size="lg"
-        >
-          {selectedQuery && (
-            <div className="space-y-6 bounce-in">
-              <div>
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">{selectedQuery.query_name}</h3>
-                <p className="text-gray-600">{selectedQuery.description || 'No description'}</p>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-sm">
-                <div>
-                  <span className="font-medium text-gray-700">Database Engine:</span>
-                  <p className="text-gray-600 mt-1">{selectedQuery.engine?.engine_name || 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Category:</span>
-                  <p className="text-gray-600 mt-1">{selectedQuery.category?.category_name || 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Tag:</span>
-                  <p className="text-gray-600 mt-1">{selectedQuery.tag?.tag_name || 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Created:</span>
-                  <p className="text-gray-600 mt-1">{formatDate(selectedQuery.created_at)}</p>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-medium text-gray-700">SQL Query:</span>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    icon={Copy}
-                    onClick={() => handleCopyQuery(selectedQuery.query_text)}
-                    className="hover:scale-105"
-                  >
-                    <span className="hidden sm:inline">Copy Query</span>
-                    <span className="sm:hidden">Copy</span>
-                  </Button>
-                </div>
-                <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg p-3 sm:p-4 border glow-on-hover">
-                  <pre className="text-sm text-gray-800 font-mono whitespace-pre-wrap">
-                    {selectedQuery.query_text}
-                  </pre>
-                </div>
-              </div>
+              ))}
             </div>
           )}
-        </Modal>
+        </div>
       </div>
+
+      {/* Modals */}
+      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create New Query" size="lg">
+        <QueryForm onSuccess={handleQueryCreated} engines={engines} categories={categories} tags={tags} />
+      </Modal>
+
+      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Query" size="lg">
+        {selectedQuery && (
+          <QueryForm query={selectedQuery} onSuccess={handleQueryUpdated} engines={engines} categories={categories} tags={tags} />
+        )}
+      </Modal>
+
+      <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title="Query Details" size="lg">
+        {selectedQuery && (
+          <div className="space-y-5">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">{selectedQuery.query_name}</h3>
+              <p className="text-sm text-gray-500">{selectedQuery.description || 'No description'}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Database Engine', value: selectedQuery.engine?.engine_name },
+                { label: 'Category', value: selectedQuery.category?.category_name },
+                { label: 'Tag', value: selectedQuery.tag?.tag_name },
+                { label: 'Created', value: formatDate(selectedQuery.created_at) },
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-gray-50 rounded-xl p-3">
+                  <span className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</span>
+                  <p className="text-sm font-medium text-gray-900">{value || 'N/A'}</p>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-700">SQL Query</span>
+                <Button size="sm" variant="secondary" icon={Copy} onClick={() => handleCopyQuery(selectedQuery.query_text)}>
+                  Copy
+                </Button>
+              </div>
+              <div className="bg-gray-950 rounded-xl p-4 overflow-x-auto">
+                <pre className="text-sm text-green-400 font-mono whitespace-pre leading-relaxed">
+                  {selectedQuery.query_text}
+                </pre>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
