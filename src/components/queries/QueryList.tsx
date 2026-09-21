@@ -346,12 +346,15 @@ export const QueryList: React.FC<QueryListProps> = ({ createTrigger = 0 }) => {
       {/* Filter Sidebar */}
       <aside
         className={`
-          flex-shrink-0 bg-white border-r border-slate-200/90
-          transition-all duration-300 ease-in-out
-          fixed inset-y-0 left-0 z-40 lg:relative lg:z-auto lg:inset-y-auto
-          ${showFilters ? 'w-72 translate-x-0' : 'w-0 -translate-x-full lg:translate-x-0'}
+          flex-shrink-0 bg-white
+          transition-all duration-300 ease-in-out overflow-hidden
+          fixed top-14 bottom-0 left-0 z-40
+          lg:relative lg:top-auto lg:bottom-auto lg:z-auto
+          ${showFilters
+            ? 'w-72 translate-x-0 opacity-100 border-r border-slate-200/90 shadow-2xl lg:shadow-none'
+            : '-translate-x-full lg:translate-x-0 lg:w-0 opacity-0 border-r-0 pointer-events-none'
+          }
         `}
-        style={{ top: '65px' }}
       >
         <div className="w-72 h-full overflow-y-auto p-5 space-y-6">
           {/* Sidebar Header */}
@@ -364,7 +367,9 @@ export const QueryList: React.FC<QueryListProps> = ({ createTrigger = 0 }) => {
             </div>
             <button
               onClick={() => setShowFilters(false)}
-              className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors hidden lg:flex"
+              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              title="Close filter panel"
+              aria-label="Close filter panel"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -497,19 +502,7 @@ export const QueryList: React.FC<QueryListProps> = ({ createTrigger = 0 }) => {
       </aside>
 
       {/* Main Catalog View */}
-      <div className="flex-1 min-w-0 bg-slate-50">
-        {/* Floating Sidebar Toggle Button (when collapsed) */}
-        {!showFilters && (
-          <button
-            onClick={() => setShowFilters(true)}
-            className="hidden lg:flex fixed left-4 z-20 bg-white shadow-md rounded-xl p-2 border border-slate-200 hover:shadow-lg transition-all"
-            style={{ top: '80px' }}
-            title="Open Filters"
-          >
-            <ChevronRight className="h-4 w-4 text-slate-700" />
-          </button>
-        )}
-
+      <div className="flex-1 min-w-0 bg-slate-50 transition-all duration-300">
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
           {/* Top Bar: Title, Search, View Mode Toggle & Actions */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -555,14 +548,15 @@ export const QueryList: React.FC<QueryListProps> = ({ createTrigger = 0 }) => {
               {/* Filter toggle button */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-2xs ${
                   showFilters
                     ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
                 }`}
+                title={showFilters ? 'Hide filter sidebar' : 'Show filter sidebar'}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{showFilters ? 'Hide Filters' : 'Filters'}</span>
+                <span>{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
                 {hasActiveFilters && (
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
                 )}
