@@ -2,13 +2,12 @@ import React from 'react';
 import { 
   Database, 
   FileText, 
-  Settings, 
   Users, 
   Tag, 
   Folder, 
-  LogOut,
-  Shield,
-  Sparkles
+  LogOut, 
+  Shield, 
+  Sparkles 
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui/Button';

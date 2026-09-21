@@ -1,53 +1,82 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  subtitle?: string;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
 
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
   title,
+  subtitle,
   children,
   size = 'md'
 }) => {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const sizeClasses = {
     sm: 'max-w-md',
-    md: 'max-w-lg sm:max-w-xl',
-    lg: 'max-w-xl sm:max-w-2xl lg:max-w-4xl',
-    xl: 'max-w-2xl sm:max-w-4xl lg:max-w-6xl'
+    md: 'max-w-lg',
+    lg: 'max-w-2xl',
+    xl: 'max-w-4xl',
+    '2xl': 'max-w-6xl'
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bounce-in">
-      <div className="flex items-end justify-center min-h-screen pt-4 px-2 sm:px-4 pb-20 text-center sm:block sm:p-0">
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-screen items-center justify-center p-3 sm:p-4 text-center">
         {/* Backdrop */}
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-lg transition-all duration-500" 
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity animate-fadeInUp duration-200" 
           onClick={onClose}
-        ></div>
+          aria-hidden="true"
+        />
 
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-
-        {/* Modal */}
-        <div className={`inline-block align-bottom bg-white/95 backdrop-blur-xl rounded-xl sm:rounded-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-4 sm:pb-6 text-left overflow-hidden shadow-2xl transform transition-all duration-500 sm:my-8 sm:align-middle sm:w-full ${sizeClasses[size]} lg:p-8 border border-gray-200/50 gradient-border`}>
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">{title}</h3>
+        {/* Modal Box */}
+        <div 
+          className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl text-left shadow-2xl border border-slate-200 overflow-hidden transform transition-all duration-200 z-10 my-8`}
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">{title}</h3>
+              {subtitle && (
+                <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
+              )}
+            </div>
             <button
               onClick={onClose}
-              className="rounded-lg sm:rounded-xl bg-gray-100 p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 hover:bg-gradient-to-r hover:from-gray-200 hover:to-red-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 hover:scale-110"
+              className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-300"
+              aria-label="Close modal"
             >
-              <X className="h-4 w-4 sm:h-5 sm:w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="max-h-[60vh] sm:max-h-[70vh] overflow-y-auto slide-in-left">
+
+          {/* Content Body */}
+          <div className="p-6 max-h-[calc(85vh-8rem)] overflow-y-auto">
             {children}
           </div>
         </div>

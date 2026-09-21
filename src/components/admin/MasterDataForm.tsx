@@ -18,9 +18,8 @@ const masterDataSchema = z.object({
 type MasterDataFormData = z.infer<typeof masterDataSchema>;
 
 interface MasterDataFormProps {
-  type: string;
   item?: DatabaseEngine | Category | Tag;
-  onSuccess: () => void;
+  onSuccess: (savedItem?: any) => void;
   config: {
     table: string;
     title: string;
@@ -30,7 +29,6 @@ interface MasterDataFormProps {
 }
 
 export const MasterDataForm: React.FC<MasterDataFormProps> = ({
-  type,
   item,
   onSuccess,
   config
@@ -48,20 +46,32 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
   });
 
   const onSubmit = async (data: MasterDataFormData) => {
+    const itemLabel = config.title.slice(0, -1);
+
+    // Session Mode
     if (!isSupabaseConnected) {
-      handleSupabaseError({ message: 'Master data management not available in demo mode' }, 'manage master data');
+      await new Promise(resolve => setTimeout(resolve, 250));
+      const mockResult = {
+        id: item?.id || `master-${Date.now()}`,
+        [config.nameField]: data.name.trim(),
+        description: data.description?.trim() || '',
+        is_active: data.is_active,
+        created_at: item?.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      showSuccessMessage(`${itemLabel} ${isEdit ? 'updated' : 'created'} (Session Mode)`);
+      onSuccess(mockResult);
       return;
     }
 
     try {
       const payload = {
-        [config.nameField]: data.name,
-        description: data.description || '',
+        [config.nameField]: data.name.trim(),
+        description: data.description?.trim() || '',
         is_active: data.is_active
       };
 
       if (isEdit) {
-        // Use service role to bypass RLS
         const { error } = await supabaseAdmin
           .from(config.table)
           .update({
@@ -71,86 +81,81 @@ export const MasterDataForm: React.FC<MasterDataFormProps> = ({
           .eq('id', item!.id);
 
         if (error) {
-          handleSupabaseError(error, `update ${config.title.slice(0, -1).toLowerCase()}`);
+          handleSupabaseError(error, `update ${itemLabel.toLowerCase()}`);
           return;
         }
         
-        showSuccessMessage(`${config.title.slice(0, -1)} updated successfully`);
+        showSuccessMessage(`${itemLabel} updated successfully`);
       } else {
-        // Use service role to bypass RLS
         const { error } = await supabaseAdmin
           .from(config.table)
           .insert(payload);
 
         if (error) {
-          handleSupabaseError(error, `create ${config.title.slice(0, -1).toLowerCase()}`);
+          handleSupabaseError(error, `create ${itemLabel.toLowerCase()}`);
           return;
         }
         
-        showSuccessMessage(`${config.title.slice(0, -1)} created successfully`);
+        showSuccessMessage(`${itemLabel} created successfully`);
       }
       
       onSuccess();
-    } catch (error: any) {
-      handleNetworkError(`${isEdit ? 'update' : 'create'} ${config.title.slice(0, -1).toLowerCase()}`);
+    } catch {
+      handleNetworkError(`${isEdit ? 'update' : 'create'} ${itemLabel.toLowerCase()}`);
     }
   };
 
   return (
-    <div className="space-y-4">
-      {!isSupabaseConnected && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 shadow-sm">
-          <p className="text-sm text-amber-800">
-            Master data management is not available in demo mode. Connect to Supabase to enable this feature.
-          </p>
-        </div>
-      )}
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <Input
+        label="Name"
+        placeholder={`Enter ${config.title.slice(0, -1).toLowerCase()} name`}
+        error={errors.name?.message}
+        {...register('name')}
+      />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <Input
-          label="Name"
-          placeholder={`Enter ${config.title.slice(0, -1).toLowerCase()} name`}
-          error={errors.name?.message}
-          disabled={!isSupabaseConnected}
-          {...register('name')}
+      <div>
+        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+          Description
+        </label>
+        <textarea
+          rows={3}
+          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl shadow-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 resize-y transition-colors"
+          placeholder={`Describe the purpose and conventions for this ${config.title.slice(0, -1).toLowerCase()}...`}
+          {...register('description')}
         />
+      </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description
-          </label>
-          <textarea
-            rows={3}
-            className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:shadow-md resize-y"
-            placeholder={`Describe this ${config.title.slice(0, -1).toLowerCase()}...`}
-            disabled={!isSupabaseConnected}
-            {...register('description')}
-          />
-        </div>
+      <div className="flex items-center space-x-2.5 pt-1">
+        <input
+          type="checkbox"
+          id="master_is_active"
+          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded"
+          {...register('is_active')}
+        />
+        <label htmlFor="master_is_active" className="text-xs font-semibold text-slate-800 cursor-pointer">
+          Active and Available in Query Selectors
+        </label>
+      </div>
 
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            id="is_active"
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded-md"
-            disabled={!isSupabaseConnected}
-            {...register('is_active')}
-          />
-          <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-            Active
-          </label>
-        </div>
-
-        <div className="flex justify-end space-x-3 pt-4">
-          <Button
-            type="submit"
-            loading={isSubmitting}
-            disabled={!isSupabaseConnected}
-          >
-            {isEdit ? `Update ${config.title.slice(0, -1)}` : `Create ${config.title.slice(0, -1)}`}
-          </Button>
-        </div>
-      </form>
-    </div>
+      <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => onSuccess()}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          variant="primary"
+          size="sm"
+          loading={isSubmitting}
+        >
+          {isEdit ? `Update ${config.title.slice(0, -1)}` : `Create ${config.title.slice(0, -1)}`}
+        </Button>
+      </div>
+    </form>
   );
 };

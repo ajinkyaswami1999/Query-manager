@@ -12,7 +12,7 @@ export const validatePassword = (password: string): { isValid: boolean; errors: 
   }
 
   // Check for at least 2 special characters
-  const specialCharCount = (password.match(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g) || []).length;
+  const specialCharCount = (password.match(/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/g) || []).length;
   if (specialCharCount < 2) {
     errors.push('Must contain at least 2 special characters');
   }
